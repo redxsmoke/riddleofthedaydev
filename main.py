@@ -664,80 +664,80 @@ async def on_ready():
 
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
     
-# Start the normal scheduled tasks as usual
-# daily_purge.start()
-# notify_upcoming_riddle.start()
-# post_riddle.start()
-# reveal_answer.start()
-# post_no_one_guessed_message.start()
+ Start the normal scheduled tasks as usual
+ daily_purge.start()
+ notify_upcoming_riddle.start()
+ post_riddle.start()
+ reveal_answer.start()
+ post_no_one_guessed_message.start()
 
-@client.event
-async def on_ready():
-    print(f"✅ Logged in as {client.user} (ID: {client.user.id})")
-    await tree.sync()
-    client.loop.create_task(riddle_loop())  # Start the loop
+#@client.event
+#async def on_ready():
+ #   print(f"✅ Logged in as {client.user} (ID: {client.user.id})")
+  #  await tree.sync()
+   # client.loop.create_task(riddle_loop())  # Start the loop
 
 
-async def riddle_loop():
-    await client.wait_until_ready()
-    ch_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
-    channel = client.get_channel(ch_id)
+#async def riddle_loop():
+ #   await client.wait_until_ready()
+  #  ch_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
+   # channel = client.get_channel(ch_id)
     
-    if not channel:
-        print("❌ Could not find riddle channel.")
-        return
+    #if not channel:
+     #   print("❌ Could not find riddle channel.")
+      #  return
 
-    while not client.is_closed():
-        try:
-            global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
+    #while not client.is_closed():
+     #   try:
+      #      global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
             
             # --- PURGE CHANNEL ---
-            async for msg in channel.history(limit=100):
-                await msg.delete()
-            print("🧹 Channel purged.")
+       #     async for msg in channel.history(limit=100):
+        #        await msg.delete()
+         #   print("🧹 Channel purged.")
 
             # --- PICK & POST RIDDLE ---
-            submitted_questions = load_json(QUESTIONS_FILE)
-            current_riddle = pick_next_riddle()
-            current_answer_revealed = False
-            correct_users.clear()
-            guess_attempts.clear()
-            deducted_for_user.clear()
+          #  submitted_questions = load_json(QUESTIONS_FILE)
+           # current_riddle = pick_next_riddle()
+            #current_answer_revealed = False
+            #correct_users.clear()
+            #guess_attempts.clear()
+            #deducted_for_user.clear()
 
-            riddle_text = format_question_text(current_riddle)
-            await channel.send(riddle_text)
-            print(f"🧠 Posted riddle: {current_riddle['question']}")
+            #riddle_text = format_question_text(current_riddle)
+            #await channel.send(riddle_text)
+            #print(f"🧠 Posted riddle: {current_riddle['question']}")
 
             # --- WAIT for users to guess (15 seconds) ---
-            await asyncio.sleep(15)
+            #await asyncio.sleep(15)
 
             # --- REVEAL ANSWER ---
-            current_answer_revealed = True
-            await channel.send(f"🔔 **Answer:** {current_riddle['answer']}")
-            print(f"✅ Revealed answer: {current_riddle['answer']}")
+            #current_answer_revealed = True
+            #await channel.send(f"🔔 **Answer:** {current_riddle['answer']}")
+           # print(f"✅ Revealed answer: {current_riddle['answer']}")
 
-            if correct_users:
-                lines = []
-                for user_id_str in correct_users:
-                    try:
-                        user = await client.fetch_user(int(user_id_str))
-                        uid = str(user.id)
-                        sv = scores.get(uid, 0)
-                        st = streaks.get(uid, 0)
-                        rank = get_rank(sv, st)
-                        lines.append(f"{user.mention} — Score: **{sv}**, 🔥 Streak: {st}, Rank: {rank}")
-                    except Exception as e:
-                        print(f"Error fetching user {user_id_str}: {e}")
-                await channel.send("🎉 Congratulations to:\n" + "\n".join(lines))
-            else:
-                await channel.send("😢 No one guessed the riddle correctly.")
+           # if correct_users:
+            #    lines = []
+            #    for user_id_str in correct_users:
+             #       try:
+                       # user = await client.fetch_user(int(user_id_str))
+                      #  uid = str(user.id)
+                      #  sv = scores.get(uid, 0)
+                      #  st = streaks.get(uid, 0)
+                      #  rank = get_rank(sv, st)
+                    #    lines.append(f"{user.mention} — Score: **{sv}**, 🔥 Streak: {st}, Rank: {rank}")
+                   # except Exception as e:
+                   #     print(f"Error fetching user {user_id_str}: {e}")
+                #await channel.send("🎉 Congratulations to:\n" + "\n".join(lines))
+            #else:
+               # await channel.send("😢 No one guessed the riddle correctly.")
 
             # --- WAIT remaining seconds to complete 30 seconds ---
-            await asyncio.sleep(15)
+           # await asyncio.sleep(15)
 
-        except Exception as e:
-            print(f"❌ Error in riddle_loop: {e}")
-            await asyncio.sleep(10)
+        #except Exception as e:
+        #    print(f"❌ Error in riddle_loop: {e}")
+        #    await asyncio.sleep(10)
 
 
 # --- Run bot ---
