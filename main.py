@@ -708,8 +708,8 @@ async def riddle_loop():
             await channel.send(riddle_text)
             print(f"🧠 Posted riddle: {current_riddle['question']}")
 
-            # --- WAIT 60 SECONDS ---
-            await asyncio.sleep(60)
+            # --- WAIT for users to guess (15 seconds) ---
+            await asyncio.sleep(15)
 
             # --- REVEAL ANSWER ---
             current_answer_revealed = True
@@ -732,12 +732,12 @@ async def riddle_loop():
             else:
                 await channel.send("😢 No one guessed the riddle correctly.")
 
-            # --- WAIT BEFORE NEXT CYCLE (e.g. 5 mins) ---
-            await asyncio.sleep(300)
+            # --- WAIT remaining seconds to complete 30 seconds ---
+            await asyncio.sleep(15)
 
         except Exception as e:
             print(f"❌ Error in riddle_loop: {e}")
-            await asyncio.sleep(60)
+            await asyncio.sleep(10)
 
 
 # --- Run bot ---
