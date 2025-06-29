@@ -65,8 +65,17 @@ def get_rank(score, streak):
         max_score = max(scores.values())
         if score == max_score and max_score > 0:
             return "🍣 Master Sushi Chef (Top scorer)"
-    if streak >= 3:
-        return f"🔥 Streak Samurai (Solved {streak} riddles consecutively)"
+    if streak >= 30:
+        return "💚🔥 Wasabi Warlord (30+ day streak)"
+    elif streak >= 20:
+        return "🥢 Rollmaster Ronin (20+ day streak)"
+    elif streak >= 10:
+        return "🍣 Nigiri Ninja (10+ day streak)"
+    elif streak >= 5:
+        return "🍤 Tempura Titan (5+ day streak)"
+    elif streak >= 3:
+        return "🔥 Streak Samurai (3+ day streak)"
+    
     if score <= 5:
         return "Sushi Newbie 🍽️"
     elif 6 <= score <= 15:
@@ -544,7 +553,7 @@ async def post_riddle():
 
 from datetime import time, timezone
 
-@tasks.loop(time=time(19, 0, tzinfo=timezone.utc))
+@tasks.loop(time=time(23, 0, tzinfo=timezone.utc))
 async def reveal_answer():
     global current_answer_revealed
 
@@ -582,7 +591,7 @@ async def reveal_answer():
     current_answer_revealed = True
 
 
-@tasks.loop(time=time(19, 1, tzinfo=timezone.utc))
+@tasks.loop(time=time(23, 1, tzinfo=timezone.utc))
 async def post_no_one_guessed_message():
     ch_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
     channel = client.get_channel(ch_id)
@@ -624,28 +633,24 @@ ADMIN ONLY COMMANDS
 @tree.command(name="ranks", description="Show rank descriptions")
 async def ranks(interaction: discord.Interaction):
     ranks_description = """
-**Riddle of the Day Ranks and Descriptions:**
+**🏅 Riddle of the Day Ranks**
 
-🍣 **Master Sushi Chef (Top scorer)**  
+🍣 **Master Sushi Chef**  
 Awarded to the user(s) with the highest score.
 
-🔥 **Streak Samurai**  
-Achieved by solving 3 or more riddles consecutively.
+🔥 **Streak-Based Titles** (based on consecutive correct riddles):
+• 🔥 **Streak Samurai** — 3-day streak  
+• 🍤 **Tempura Titan** — 5-day streak  
+• 🍣 **Nigiri Ninja** — 10-day streak  
+• 🥢 **Rollmaster Ronin** — 20-day streak  
+• 💚🔥 **Wasabi Warlord** — 30+ day streak
 
-Sushi Newbie 🍽️  
-For scores 0 to 5 points.
-
-Maki Novice 🍣  
-For scores between 6 and 15 points.
-
-Sashimi Skilled 🍤  
-For scores between 16 and 25 points.
-
-Brainy Botan 🧠  
-For scores between 26 and 50 points.
-
-Sushi Einstein 🧪  
-For scores above 50 points.
+🎯 **Score-Based Ranks**:
+• 🍽️ **Sushi Newbie** — 0 to 5 points  
+• 🍣 **Maki Novice** — 6 to 15 points  
+• 🍤 **Sashimi Skilled** — 16 to 25 points  
+• 🧠 **Brainy Botan** — 26 to 50 points  
+• 🧪 **Sushi Einstein** — 51+ points
 """
     await interaction.response.send_message(ranks_description, ephemeral=True)
 
@@ -664,80 +669,14 @@ async def on_ready():
 
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
     
- Start the normal scheduled tasks as usual
- daily_purge.start()
- notify_upcoming_riddle.start()
- post_riddle.start()
- reveal_answer.start()
- post_no_one_guessed_message.start()
-
-#@client.event
-#async def on_ready():
- #   print(f"✅ Logged in as {client.user} (ID: {client.user.id})")
-  #  await tree.sync()
-   # client.loop.create_task(riddle_loop())  # Start the loop
-
-
-#async def riddle_loop():
- #   await client.wait_until_ready()
-  #  ch_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
-   # channel = client.get_channel(ch_id)
+    # Start the normal scheduled tasks as usual
+    daily_purge.start()
+    notify_upcoming_riddle.start()
+    post_riddle.start()
+    reveal_answer.start()
+    post_no_one_guessed_message.start()
     
-    #if not channel:
-     #   print("❌ Could not find riddle channel.")
-      #  return
-
-    #while not client.is_closed():
-     #   try:
-      #      global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
-            
-            # --- PURGE CHANNEL ---
-       #     async for msg in channel.history(limit=100):
-        #        await msg.delete()
-         #   print("🧹 Channel purged.")
-
-            # --- PICK & POST RIDDLE ---
-          #  submitted_questions = load_json(QUESTIONS_FILE)
-           # current_riddle = pick_next_riddle()
-            #current_answer_revealed = False
-            #correct_users.clear()
-            #guess_attempts.clear()
-            #deducted_for_user.clear()
-
-            #riddle_text = format_question_text(current_riddle)
-            #await channel.send(riddle_text)
-            #print(f"🧠 Posted riddle: {current_riddle['question']}")
-
-            # --- WAIT for users to guess (15 seconds) ---
-            #await asyncio.sleep(15)
-
-            # --- REVEAL ANSWER ---
-            #current_answer_revealed = True
-            #await channel.send(f"🔔 **Answer:** {current_riddle['answer']}")
-           # print(f"✅ Revealed answer: {current_riddle['answer']}")
-
-           # if correct_users:
-            #    lines = []
-            #    for user_id_str in correct_users:
-             #       try:
-                       # user = await client.fetch_user(int(user_id_str))
-                      #  uid = str(user.id)
-                      #  sv = scores.get(uid, 0)
-                      #  st = streaks.get(uid, 0)
-                      #  rank = get_rank(sv, st)
-                    #    lines.append(f"{user.mention} — Score: **{sv}**, 🔥 Streak: {st}, Rank: {rank}")
-                   # except Exception as e:
-                   #     print(f"Error fetching user {user_id_str}: {e}")
-                #await channel.send("🎉 Congratulations to:\n" + "\n".join(lines))
-            #else:
-               # await channel.send("😢 No one guessed the riddle correctly.")
-
-            # --- WAIT remaining seconds to complete 30 seconds ---
-           # await asyncio.sleep(15)
-
-        #except Exception as e:
-        #    print(f"❌ Error in riddle_loop: {e}")
-        #    await asyncio.sleep(10)
+   
 
 
 # --- Run bot ---
@@ -746,6 +685,3 @@ if not DISCORD_TOKEN:
     print("ERROR: DISCORD_BOT_TOKEN environment variable not set.")
 else:
     client.run(DISCORD_TOKEN)
-
-
-
