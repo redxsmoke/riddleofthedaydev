@@ -10,6 +10,7 @@ import traceback
 import random
 from datetime import datetime, time, timezone, timedelta, date
 from discord import app_commands
+from test_sequence import run_test_sequence
 
 NOTIFY_USER_ID = os.getenv("NOTIFY_USER_ID")
 STOP_WORDS = {"a", "an", "the", "is", "was", "were", "of", "to", "and", "in", "on", "at", "by"}
