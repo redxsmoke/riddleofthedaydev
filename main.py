@@ -349,6 +349,8 @@ async def ranks(interaction: discord.Interaction):
 
 @tree.command(name="leaderboard", description="Show the top scores and streaks")
 async def leaderboard(interaction: discord.Interaction):
+    load_all_data()  # Reload fresh from disk to sync latest data
+
     # Sort top 10 by score descending
     top_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:10]
     # Sort top 10 by streak descending
@@ -358,44 +360,55 @@ async def leaderboard(interaction: discord.Interaction):
         title="🏆 Riddle of the Day Leaderboard",
         color=discord.Color.purple()
     )
-    
-    # Example user data — replace with actual sorted leaderboard entries
-    top_users = [
-        {
-            "mention": "𝐈𝐳𝐳𝐲𝐁𝐚𝐧",
-            "score": 1,
-            "streak": 1,
-            "rank": "🍣 Master Sushi Chef (Top scorer)"
-        },
-        # Add more user dicts here...
-    ]
-    
-    description_lines = []
-    for user in top_users:
-        description_lines.append(f"**{user['mention']}**:")
-        description_lines.append(f"• Score: **{user['score']}**")
-        description_lines.append(f"• Streak: 🔥 **{user['streak']}**")
-        description_lines.append(f"• Rank: {user['rank']}")
-        description_lines.append("")  # Blank line between users
-    
-    leaderboard_embed.description = "\n".join(description_lines)
-    
-    await interaction.response.send_message(embed=leaderboard_embed)
 
+    description_lines = []
+    for user_id, score_val in top_scores:
+        try:
+            user = await client.fetch_user(int(user_id))
+            streak_val = streaks.get(user_id, 0)
+            rank = get_rank(score_val, streak_val)
+
+            description_lines.append(f"• {user.mention}")
+            description_lines.append(f"  - Score: {score_val}")
+            description_lines.append(f"  - Streak: 🔥{streak_val}")
+            description_lines.append(f"  - Rank: {rank}")
+            description_lines.append("")  # Blank line between users
+        except Exception:
+            description_lines.append(f"• <@{user_id}> (User data unavailable)")
+            description_lines.append("")
+
+    leaderboard_embed.description = "\n".join(description_lines)
+
+    # Also add separate fields for top scores and top streaks as a summary
     score_lines = []
     for idx, (user_id, score_val) in enumerate(top_scores, start=1):
-        user = await client.fetch_user(int(user_id))
-        score_lines.append(f"#{idx} — {user.display_name}: **{score_val}** points")
+        try:
+            user = await client.fetch_user(int(user_id))
+            score_lines.append(f"#{idx} — {user.display_name}: **{score_val}** points")
+        except Exception:
+            score_lines.append(f"#{idx} — <@{user_id}>: **{score_val}** points")
 
     streak_lines = []
     for idx, (user_id, streak_val) in enumerate(top_streaks, start=1):
-        user = await client.fetch_user(int(user_id))
-        streak_lines.append(f"#{idx} — {user.display_name}: 🔥 **{streak_val}** day streak")
+        try:
+            user = await client.fetch_user(int(user_id))
+            streak_lines.append(f"#{idx} — {user.display_name}: 🔥 **{streak_val}** day streak")
+        except Exception:
+            streak_lines.append(f"#{idx} — <@{user_id}>: 🔥 **{streak_val}** day streak")
 
-    embed.add_field(name="Top Scores", value="\n".join(score_lines) if score_lines else "No scores yet.", inline=True)
-    embed.add_field(name="Top Streaks", value="\n".join(streak_lines) if streak_lines else "No streaks yet.", inline=True)
+    leaderboard_embed.add_field(
+        name="Top Scores",
+        value="\n".join(score_lines) if score_lines else "No scores yet.",
+        inline=True
+    )
+    leaderboard_embed.add_field(
+        name="Top Streaks",
+        value="\n".join(streak_lines) if streak_lines else "No streaks yet.",
+        inline=True
+    )
 
-    await interaction.response.send_message(embed=embed)
+    await interaction.response.send_message(embed=leaderboard_embed)
+
 
 
 
