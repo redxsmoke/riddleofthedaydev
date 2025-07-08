@@ -217,53 +217,6 @@ async def submitriddle(interaction: discord.Interaction, question: str, answer: 
     await interaction.response.send_message(embed=embed)
 
 
-@tree.command(name="guess", description="Submit your guess for the active riddle")
-@app_commands.describe(guess="Your guess for the riddle answer")
-async def guess(interaction: discord.Interaction, guess: str):
-    global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
-
-    if current_riddle is None:
-        await interaction.response.send_message("❌ There is no active riddle right now.", ephemeral=True)
-        return
-
-    if current_answer_revealed:
-        await interaction.response.send_message("❌ The answer has already been revealed for this riddle.", ephemeral=True)
-        return
-
-    uid = str(interaction.user.id)
-    guess_attempts[uid] = guess_attempts.get(uid, 0) + 1
-
-    normalized_guess = guess.strip().lower()
-    correct_answer = current_riddle['answer'].lower()
-
-    if normalized_guess == correct_answer:
-        if uid in correct_users:
-            await interaction.response.send_message("✅ You already guessed correctly!", ephemeral=True)
-            return
-
-        correct_users.add(uid)
-        scores[uid] = scores.get(uid, 0) + 10  # Points for correct guess
-        streaks[uid] = streaks.get(uid, 0) + 1
-        save_all_scores()
-
-        embed = discord.Embed(
-            title="Correct Guess! 🎉",
-            description=f"Congratulations {interaction.user.mention}, you guessed the riddle correctly!\nYou earned 10 points and your streak increased by 1.",
-            color=discord.Color.green()
-        )
-        await interaction.response.send_message(embed=embed)
-    else:
-        if uid not in deducted_for_user:
-            scores[uid] = clamp_min_zero(scores.get(uid, 0) - 1)
-            deducted_for_user.add(uid)
-            save_all_scores()
-
-        embed = discord.Embed(
-            title="Incorrect Guess ❌",
-            description=f"Sorry {interaction.user.mention}, that is not the correct answer.",
-            color=discord.Color.red()
-        )
-        await interaction.response.send_message(embed=embed)
 @tree.command(name="addpoints", description="Add points to a user")
 @app_commands.describe(user="The user to add points to", amount="Number of points to add (positive integer)")
 @app_commands.checks.has_permissions(manage_guild=True)
@@ -384,6 +337,110 @@ def setup_test_sequence_commands(tree, client):
         await channel.send("✅ Test sequence completed. You can run `/run_test_sequence` again to test.")
 
 setup_test_sequence_commands(tree, client)
+
+@client.event
+async def on_message(message):
+    # Ignore bot messages
+    if message.author.bot:
+        return
+
+    # Only listen in the designated riddle channel
+    ch_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
+    if message.channel.id != ch_id:
+        return
+
+    global correct_users, guess_attempts, deducted_for_user, current_riddle, current_answer_revealed
+
+    user_id = str(message.author.id)
+    content = message.content.strip()
+
+    # No active riddle or already revealed
+    if not current_riddle or current_answer_revealed:
+        return
+
+    # Submitter cannot answer and doesn't lose streak
+    if current_riddle.get("submitter_id") == user_id:
+        try: await message.delete()
+        except: pass
+        await message.channel.send(
+            "⛔ You submitted this riddle and cannot answer it.",
+            delete_after=10
+        )
+        return
+
+    # If they've already answered correctly, ignore further guesses
+    if user_id in correct_users:
+        try: await message.delete()
+        except: pass
+        await message.channel.send(
+            f"✅ You already answered correctly, {message.author.mention}. No more guesses counted.",
+            delete_after=5
+        )
+        return
+
+    # Track how many guesses they’ve made
+    attempts = guess_attempts.get(user_id, 0)
+    if attempts >= 5:
+        try: await message.delete()
+        except: pass
+        await message.channel.send(
+            f"❌ You are out of guesses for this riddle, {message.author.mention}.",
+            delete_after=5
+        )
+        return
+
+    # Record this guess
+    guess_attempts[user_id] = attempts + 1
+
+    # Check answer words
+    user_words = clean_and_filter(content)
+    answer_words = clean_and_filter(current_riddle["answer"])
+
+    if any(word in user_words for word in answer_words):
+        # Correct
+        correct_users.add(user_id)
+        scores[user_id] = scores.get(user_id, 0) + 1
+        streaks[user_id] = streaks.get(user_id, 0) + 1
+        save_all_scores()
+        try: await message.delete()
+        except: pass
+        await message.channel.send(
+            f"🎉 Correct, {message.author.mention}! Your total score: {scores[user_id]}"
+        )
+    else:
+        # Wrong
+        remaining = 5 - guess_attempts[user_id]
+        if remaining == 0 and user_id not in deducted_for_user:
+            # Penalty on 5th wrong guess
+            scores[user_id] = max(0, scores.get(user_id, 0) - 1)
+            streaks[user_id] = 0
+            deducted_for_user.add(user_id)
+            save_all_scores()
+            await message.channel.send(
+                f"❌ Incorrect, {message.author.mention}. You've used all guesses and lost 1 point.",
+                delete_after=8
+            )
+        elif remaining > 0:
+            await message.channel.send(
+                f"❌ Incorrect, {message.author.mention}. {remaining} guess(es) left.",
+                delete_after=6
+            )
+        try: await message.delete()
+        except: pass
+
+    # Send countdown until reveal
+    now_utc = datetime.now(timezone.utc)
+    reveal_dt = datetime.combine(now_utc.date(), time(23, 0), tzinfo=timezone.utc)
+    if now_utc >= reveal_dt:
+        reveal_dt += timedelta(days=1)
+    delta = reveal_dt - now_utc
+    hours, remainder = divmod(int(delta.total_seconds()), 3600)
+    minutes = remainder // 60
+    countdown_msg = (
+        f"⏳ Answer will be revealed in {hours} hour{'s' if hours != 1 else ''} "
+        f"{minutes} minute{'s' if minutes != 1 else ''}."
+    )
+    await message.channel.send(countdown_msg, delete_after=12)
 
 @client.event
 async def on_ready():
