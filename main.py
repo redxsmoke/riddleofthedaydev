@@ -2,6 +2,11 @@
 
 import discord
 from discord.ext import tasks
+from discord import app_commands
+
+client = discord.Client(...)
+tree = app_commands.CommandTree(client)
+
 import asyncio
 import json
 import os
@@ -9,9 +14,10 @@ import re
 import traceback
 import random
 from datetime import datetime, time, timezone, timedelta, date
-from discord import app_commands
-from test_sequence import run_test_sequence
 
+import test_sequence  
+test_sequence.setup_test_sequence_commands(tree)
+ 
 NOTIFY_USER_ID = os.getenv("NOTIFY_USER_ID")
 STOP_WORDS = {"a", "an", "the", "is", "was", "were", "of", "to", "and", "in", "on", "at", "by"}
 
@@ -801,3 +807,8 @@ def clean_and_filter(text):
         filtered = filtered.replace(ch, " ")
     return set(filtered.split())
 
+DISCORD_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+if not DISCORD_TOKEN:
+    print("ERROR: DISCORD_BOT_TOKEN environment variable not set.")
+else:
+    client.run(DISCORD_TOKEN)
