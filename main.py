@@ -1,6 +1,7 @@
 import discord
 from discord.ext import tasks
-from discord import app_commands
+from discord import app_commands, Interaction, Embed
+from discord.ui import View, Button
 import asyncio
 import json
 import os
@@ -178,14 +179,11 @@ def get_rank(score, streak):
         return "Brainy Botan 🧠"
     else:
         return "Sushi Einstein 🧪"
+
 @tree.command(name="submitriddle", description="Submit a new riddle for the daily contest")
 @app_commands.describe(question="The riddle question", answer="The answer to the riddle")
 async def submitriddle(interaction: discord.Interaction, question: str, answer: str):
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
-
-    if current_riddle is not None:
-        await interaction.response.send_message("❌ There is already an active riddle. Please wait for it to finish.", ephemeral=True)
-        return
 
     question = question.strip()
     answer = answer.strip().lower()
@@ -193,6 +191,18 @@ async def submitriddle(interaction: discord.Interaction, question: str, answer: 
     if not question or not answer:
         await interaction.response.send_message("❌ Question and answer cannot be empty.", ephemeral=True)
         return
+
+    # Check for duplicate question (case-insensitive, ignoring extra spaces)
+    normalized_question = " ".join(question.lower().split())
+    for q in submitted_questions:
+        existing_question = q.get("question", "")
+        normalized_existing = " ".join(existing_question.lower().split())
+        if normalized_question == normalized_existing:
+            await interaction.response.send_message(
+                "❌ This riddle has already been submitted. Please try a different one.",
+                ephemeral=True
+            )
+            return
 
     new_id = get_next_id()
     new_riddle = {
@@ -216,6 +226,31 @@ async def submitriddle(interaction: discord.Interaction, question: str, answer: 
         color=discord.Color.blurple()
     )
     await interaction.response.send_message(embed=embed)
+
+    # Notify moderation user
+    notify_user_id = os.getenv("NOTIFY_USER_ID")
+    if notify_user_id:
+        try:
+            notify_user = await client.fetch_user(int(notify_user_id))
+            if notify_user:
+                await notify_user.send(
+                    f"@{interaction.user.display_name} has submitted a new riddle. "
+                    "Use `/listriddles` to view the riddle and `/removeriddle` if moderation is needed."
+                )
+        except Exception as e:
+            print(f"Failed to send DM to notify user: {e}")
+
+    # DM the submitter with confirmation and info
+    dm_message = (
+        "✅ Thank you for submitting your riddle! It has been added to the queue.\n\n"
+        "📌 Please note that on the day your riddle is posted, you won’t be able to answer it yourself.\n"
+        "🎉 Your score has already been increased by 1, and your streak will remain intact. Keep up the great work!"
+    )
+    try:
+        await interaction.user.send(dm_message)
+    except Exception:
+        pass
+
 
 
 def ensure_user_initialized(uid: str):
@@ -424,6 +459,107 @@ async def create_leaderboard_embed():
 
     return leaderboard_embed
 
+@tree.command(name="removeriddle", description="Remove a riddle by its number (ID)")
+@app_commands.describe(riddle_id="The ID number of the riddle to remove")
+@app_commands.checks.has_permissions(manage_guild=True)
+async def removeriddle(interaction: discord.Interaction, riddle_id: int):
+    global submitted_questions, used_question_ids
+
+    # Convert ID to string to match stored riddles
+    riddle_id_str = str(riddle_id)
+
+    # Find riddle index by ID
+    index_to_remove = next((i for i, r in enumerate(submitted_questions) if str(r.get("id")) == riddle_id_str), None)
+
+    if index_to_remove is None:
+        await interaction.response.send_message(f"❌ No riddle found with ID #{riddle_id}.", ephemeral=True)
+        return
+
+    # Remove riddle
+    removed_riddle = submitted_questions.pop(index_to_remove)
+    used_question_ids.discard(riddle_id_str)
+
+    # Save changes
+    save_all_riddles()
+
+    await interaction.response.send_message(f"✅ Removed riddle #{riddle_id}: {removed_riddle.get('question')}", ephemeral=True)
+
+ITEMS_PER_PAGE = 10
+
+class ListRiddlesView(View):
+    def __init__(self, riddles, author_id, bot):
+        super().__init__(timeout=180)
+        self.riddles = riddles
+        self.author_id = author_id
+        self.current_page = 0
+        self.total_pages = max(1, (len(riddles) - 1) // ITEMS_PER_PAGE + 1)
+        self.bot = bot  # save bot/client to fetch users
+        self.update_buttons()
+
+    def update_buttons(self):
+        self.prev_button.disabled = self.current_page == 0
+        self.next_button.disabled = self.current_page >= self.total_pages - 1
+
+    async def get_page_embed(self):
+        start = self.current_page * ITEMS_PER_PAGE
+        end = start + ITEMS_PER_PAGE
+        page_riddles = self.riddles[start:end]
+
+        embed = Embed(
+            title=f"📜 Submitted Riddles (Page {self.current_page + 1}/{self.total_pages})",
+            color=discord.Color.blurple()
+        )
+
+        if not page_riddles:
+            embed.description = "No riddles available."
+            return embed
+
+        desc_lines = []
+        for riddle in page_riddles:
+            try:
+                user = await self.bot.fetch_user(int(riddle['submitter_id']))
+                display_name = user.display_name if hasattr(user, 'display_name') else user.name
+            except Exception:
+                display_name = "Unknown User"
+            desc_lines.append(f"#{riddle['id']}: {riddle['question']}\n_(submitted by {display_name})_")
+
+        embed.description = "\n\n".join(desc_lines)
+        embed.set_footer(text="Use the buttons below to navigate pages.")
+        return embed
+
+    @discord.ui.button(label="Previous", style=discord.ButtonStyle.secondary)
+    async def prev_button(self, interaction: Interaction, button: Button):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("Only the command invoker can use these buttons.", ephemeral=True)
+            return
+        if self.current_page > 0:
+            self.current_page -= 1
+            self.update_buttons()
+            embed = await self.get_page_embed()
+            await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="Next", style=discord.ButtonStyle.secondary)
+    async def next_button(self, interaction: Interaction, button: Button):
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message("Only the command invoker can use these buttons.", ephemeral=True)
+            return
+        if self.current_page < self.total_pages - 1:
+            self.current_page += 1
+            self.update_buttons()
+            embed = await self.get_page_embed()
+            await interaction.response.edit_message(embed=embed, view=self)
+
+
+@tree.command(name="listriddles", description="List all submitted riddles with pagination")
+async def listriddles(interaction: discord.Interaction):
+    if not submitted_questions:
+        await interaction.response.send_message("No riddles have been submitted yet.", ephemeral=True)
+        return
+
+    view = ListRiddlesView(submitted_questions, interaction.user.id, interaction.client)
+    embed = await view.get_page_embed()
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
 
 
 @tree.command(name="leaderboard", description="Show the top scores and streaks")
@@ -575,11 +711,9 @@ setup_test_sequence_commands(tree, client)
 
 @client.event
 async def on_message(message):
-    # Ignore bot messages
     if message.author.bot:
         return
 
-    # Only listen in the designated riddle channel
     ch_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
     if message.channel.id != ch_id:
         return
@@ -589,19 +723,28 @@ async def on_message(message):
     user_id = str(message.author.id)
     content = message.content.strip()
 
-    # No active riddle or already revealed
+    # If no riddle is active or it's already revealed, ignore all messages (they're not guesses)
     if not current_riddle or current_answer_revealed:
         return
 
-    # Submitter cannot answer and doesn't lose streak
+    # Only block submitter IF the active riddle is theirs AND they are trying to guess it
     if current_riddle.get("submitter_id") == user_id:
-        try: await message.delete()
-        except: pass
-        await message.channel.send(
-            "⛔ You submitted this riddle and cannot answer it.",
-            delete_after=10
-        )
-        return
+        user_words = clean_and_filter(content)
+        answer_words = clean_and_filter(current_riddle["answer"])
+
+        # Only block if it looks like an answer attempt
+        if any(word in answer_words for word in user_words):
+            try:
+                await message.delete()
+            except:
+                pass
+            await message.channel.send(
+                "⛔ You submitted this riddle and cannot answer it.",
+                delete_after=10
+            )
+            return
+        else:
+            return 
 
     # If they've already answered correctly, ignore further guesses
     if user_id in correct_users:
@@ -770,4 +913,3 @@ if __name__ == "__main__":
         exit(1)
 
     client.run(TOKEN)
-
