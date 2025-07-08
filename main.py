@@ -349,12 +349,10 @@ async def ranks(interaction: discord.Interaction):
 
 @tree.command(name="leaderboard", description="Show the top scores and streaks")
 async def leaderboard(interaction: discord.Interaction):
-    load_all_data()  # Reload fresh from disk to sync latest data
+    load_all_data()  # Reload latest data from disk
 
     # Sort top 10 by score descending
     top_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:10]
-    # Sort top 10 by streak descending
-    top_streaks = sorted(streaks.items(), key=lambda x: x[1], reverse=True)[:10]
 
     leaderboard_embed = discord.Embed(
         title="🏆 Riddle of the Day Leaderboard",
@@ -362,22 +360,24 @@ async def leaderboard(interaction: discord.Interaction):
     )
 
     description_lines = []
-    for user_id, score_val in top_scores:
+    for idx, (user_id, score_val) in enumerate(top_scores, start=1):
         try:
             user = await client.fetch_user(int(user_id))
             streak_val = streaks.get(user_id, 0)
             rank = get_rank(score_val, streak_val)
 
-            description_lines.append(f"• {user.mention}")
-            description_lines.append(f"  - Score: {score_val}")
-            description_lines.append(f"  - Streak: 🔥{streak_val}")
-            description_lines.append(f"  - Rank: {rank}")
+            description_lines.append(f"#{idx} {user.display_name}:")
+            description_lines.append(f"    • Score: {score_val}")
+            description_lines.append(f"    • Streak: 🔥{streak_val}")
+            description_lines.append(f"    • Rank: {rank}")
             description_lines.append("")  # Blank line between users
         except Exception:
-            description_lines.append(f"• <@{user_id}> (User data unavailable)")
+            description_lines.append(f"#{idx} <@{user_id}> (User data unavailable)")
             description_lines.append("")
 
     leaderboard_embed.description = "\n".join(description_lines)
+
+    await interaction.response.send_message(embed=leaderboard_embed)
 
     # Also add separate fields for top scores and top streaks as a summary
     score_lines = []
