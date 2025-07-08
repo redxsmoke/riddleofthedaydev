@@ -4,7 +4,11 @@ import discord
 from discord.ext import tasks
 from discord import app_commands
 
-client = discord.Client(...)
+intents = discord.Intents.default()
+intents.message_content = True  # for example
+
+client = discord.Client(intents=intents)
+
 tree = app_commands.CommandTree(client)
 
 import asyncio
