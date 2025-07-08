@@ -354,9 +354,6 @@ async def create_leaderboard_embed():
     # Top scores sorted descending by score
     top_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:10]
 
-    # Top streaks sorted descending by streak
-    top_streaks = sorted(streaks.items(), key=lambda x: x[1], reverse=True)[:10]
-
     leaderboard_embed = discord.Embed(
         title="🏆 Riddle of the Day Leaderboard",
         color=discord.Color.purple()
@@ -379,38 +376,10 @@ async def create_leaderboard_embed():
             description_lines.append("")
 
     leaderboard_embed.description = "\n".join(description_lines)
-
-    # Prepare summary fields
-    score_lines = []
-    for idx, (user_id, score_val) in enumerate(top_scores, start=1):
-        try:
-            user = await client.fetch_user(int(user_id))
-            score_lines.append(f"#{idx} — {user.display_name}: **{score_val}** points")
-        except Exception:
-            score_lines.append(f"#{idx} — <@{user_id}>: **{score_val}** points")
-
-    streak_lines = []
-    for idx, (user_id, streak_val) in enumerate(top_streaks, start=1):
-        try:
-            user = await client.fetch_user(int(user_id))
-            streak_lines.append(f"#{idx} — {user.display_name}: 🔥 **{streak_val}** day streak")
-        except Exception:
-            streak_lines.append(f"#{idx} — <@{user_id}>: 🔥 **{streak_val}** day streak")
-
-    leaderboard_embed.add_field(
-        name="Top Scores",
-        value="\n".join(score_lines) if score_lines else "No scores yet.",
-        inline=True
-    )
-    leaderboard_embed.add_field(
-        name="Top Streaks",
-        value="\n".join(streak_lines) if streak_lines else "No streaks yet.",
-        inline=True
-    )
-
     leaderboard_embed.set_footer(text="Ranks update automatically based on your progress.")
 
     return leaderboard_embed
+
 
 
 @tree.command(name="leaderboard", description="Show the top scores and streaks")
@@ -475,7 +444,7 @@ def setup_test_sequence_commands(tree, client):
 
         riddle_embed = discord.Embed(
             title=f"🧩 Riddle of the Day #{current_riddle['id']}",
-            description=f"**Riddle:** {current_riddle['question']}\n\n_(Riddle submitted by **Riddle of the Day Bot**)_\n\n💡 Submit your own riddle using the `/submitriddle` command!",
+            description=f"**Riddle:** {current_riddle['question']}\n\n_(Riddle submitted by **Riddle of the Day Bot**)_\n\n",
             color=discord.Color.blurple()
         )
         await channel.send(embed=riddle_embed)
