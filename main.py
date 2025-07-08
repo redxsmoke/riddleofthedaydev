@@ -299,78 +299,80 @@ async def removestreak(interaction: discord.Interaction, user: discord.User, amo
     save_all_scores()
     await interaction.response.send_message(f"❌ Removed {amount} streak day(s) from {user.mention}. New streak: {streaks[uid]}", ephemeral=True)
 def setup_test_sequence_commands(tree, client):
-    @tree.command(name="run_test_sequence", description="Run a full test riddle workflow")
-    @app_commands.checks.has_permissions(manage_guild=True)
-    async def run_test_sequence(interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
+@tree.command(name="run_test_sequence", description="Run a full test riddle workflow")
+@app_commands.checks.has_permissions(manage_guild=True)
+async def run_test_sequence(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
 
-        channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
-        channel = client.get_channel(channel_id)
-        if not channel:
-            await interaction.followup.send("❌ Test failed: Channel not found.", ephemeral=True)
-            return
+    channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
+    channel = client.get_channel(channel_id)
+    if not channel:
+        await interaction.followup.send("❌ Test failed: Channel not found.", ephemeral=True)
+        return
 
-        global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
+    # Announcement embed for next riddle
+    announcement_embed = discord.Embed(
+        title="ℹ️ Upcoming Riddle Alert!",
+        description="The next riddle will be submitted soon. Get ready!\n\n💡 Submit your own riddle using the `/submitriddle` command!",
+        color=discord.Color.blurple()
+    )
+    await channel.send(embed=announcement_embed)
 
-        current_riddle = {
-            "id": "9999",
-            "question": "What has keys but can't open locks?",
-            "answer": "piano",
-            "submitter_id": None,
-        }
-        current_answer_revealed = False
-        correct_users = set()
-        guess_attempts = {}
-        deducted_for_user = set()
+    global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
-        embed = discord.Embed(
-            title=f"🧩 Riddle of the Day #{current_riddle['id']}",
-            description=f"**Riddle:** {current_riddle['question']}\n\n_(Riddle submitted by **Riddle of the Day Bot**)_",
-            color=discord.Color.blurple()
-        )
-        await channel.send(embed=embed)
+    current_riddle = {
+        "id": "9999",
+        "question": "What has keys but can't open locks?",
+        "answer": "piano",
+        "submitter_id": None,
+    }
+    current_answer_revealed = False
+    correct_users = set()
+    guess_attempts = {}
+    deducted_for_user = set()
 
-        await interaction.followup.send("✅ Test riddle posted. Waiting 30 seconds before revealing answer...", ephemeral=True)
+    riddle_embed = discord.Embed(
+        title=f"🧩 Riddle of the Day #{current_riddle['id']}",
+        description=f"**Riddle:** {current_riddle['question']}\n\n_(Riddle submitted by **Riddle of the Day Bot**)_\n\n💡 Submit your own riddle using the `/submitriddle` command!",
+        color=discord.Color.blurple()
+    )
+    await channel.send(embed=riddle_embed)
 
-        await asyncio.sleep(30)
+    await interaction.followup.send("✅ Test riddle posted. Waiting 30 seconds before revealing answer...", ephemeral=True)
 
-        answer_embed = discord.Embed(
-            title=f"🔔 Answer to Riddle #{current_riddle['id']}",
-            description=f"**Answer:** {current_riddle['answer']}\n\n💡 Use `/submitriddle` to submit your own riddle!",
-            color=discord.Color.green()
-        )
-        await channel.send(embed=answer_embed)
+    await asyncio.sleep(30)
 
-        if correct_users:
-            congrats_lines = []
-            for user_id_str in correct_users:
-                try:
-                    user = await client.fetch_user(int(user_id_str))
-                    sv = scores.get(str(user.id), 0)
-                    st = streaks.get(str(user.id), 0)
-                    rank = get_rank(sv, st)
-                    congrats_lines.append(f"{user.mention} — Score: **{sv}**, Streak: 🔥{st}, Rank: {rank}")
-                except Exception:
-                    congrats_lines.append(f"<@{user_id_str}>")
-        
-            congrats_msg = "\n".join(congrats_lines)
-            congrats_embed = discord.Embed(
-                title="🎉 Congratulations to:",
-                description=congrats_msg,
-                color=discord.Color.gold()
-            )
-            await channel.send(embed=congrats_embed)
-        else:
-            await channel.send("😢 No one guessed the riddle correctly during the test.")
+    answer_embed = discord.Embed(
+        title=f"🔔 Answer to Riddle #{current_riddle['id']}",
+        description=f"**Answer:** {current_riddle['answer']}\n\n💡 Use `/submitriddle` to submit your own riddle!",
+        color=discord.Color.green()
+    )
+    await channel.send(embed=answer_embed)
 
+    if correct_users:
+        congrats_lines = []
+        for user_id_str in correct_users:
+            try:
+                user = await client.fetch_user(int(user_id_str))
+                sv = scores.get(str(user.id), 0)
+                st = streaks.get(str(user.id), 0)
+                rank = get_rank(sv, st)
+                congrats_lines.append(f"{user.mention} — Score: **{sv}**, Streak: 🔥{st}, Rank: {rank}")
+            except Exception:
+                congrats_lines.append(f"<@{user_id_str}>")
+        congrats_msg = "🎉 Congratulations to:\n" + "\n".join(congrats_lines)
+        await channel.send(congrats_msg)
+    else:
+        await channel.send("😢 No one guessed the riddle correctly during the test.")
 
-        current_answer_revealed = True
-        correct_users.clear()
-        guess_attempts.clear()
-        deducted_for_user.clear()
-        current_riddle = None
+    current_answer_revealed = True
+    correct_users.clear()
+    guess_attempts.clear()
+    deducted_for_user.clear()
+    current_riddle = None
 
-        await channel.send("✅ Test sequence completed. You can run `/run_test_sequence` again to test.")
+    await channel.send("✅ Test sequence completed. You can run `/run_test_sequence` again to test.")
+
 
 setup_test_sequence_commands(tree, client)
 
@@ -505,6 +507,22 @@ async def on_command_error(interaction: discord.Interaction, error):
         await interaction.response.send_message(f"⚠️ An error occurred: {error}", ephemeral=True)
         print(f"Error in command {interaction.command}: {error}")
         traceback.print_exc()
+
+@tasks.loop(time=time(hour=11, minute=50, second=0))  # 10 minutes before daily post
+async def riddle_announcement():
+    channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
+    channel = client.get_channel(channel_id)
+    if not channel:
+        print("Riddle announcement skipped: Channel not found.")
+        return
+
+    embed = discord.Embed(
+        title="ℹ️ Upcoming Riddle Alert!",
+        description="The next riddle will be submitted soon. Get ready!\n\n💡 Submit your own riddle using the `/submitriddle` command!",
+        color=discord.Color.blurple()
+    )
+
+    await channel.send(embed=embed)
 
 
 @tasks.loop(time=time(hour=12, minute=0, second=0))  # Posts every day at noon UTC
