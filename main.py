@@ -518,9 +518,9 @@ def clamp_min_zero(value):
 if __name__ == "__main__":
     import os
 
-    TOKEN = os.getenv("DISCORD_TOKEN")
+    TOKEN = os.getenv("DISCORD_BOT_TOKEN")
     if not TOKEN:
-        print("ERROR: DISCORD_TOKEN environment variable is not set.")
+        print("ERROR: DISCORD_BOT_TOKEN environment variable is not set.")
         exit(1)
 
     client.run(TOKEN)
