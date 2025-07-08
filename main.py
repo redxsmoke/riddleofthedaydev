@@ -398,18 +398,6 @@ async def leaderboard(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 
-@tree.command(name="removestreak", description="Remove streak days from a user")
-@app_commands.describe(user="The user to remove streak days from", amount="Number of streak days to remove (positive integer)")
-@app_commands.checks.has_permissions(manage_guild=True)
-async def removestreak(interaction: discord.Interaction, user: discord.User, amount: int):
-    if amount <= 0:
-        await interaction.response.send_message("❌ Amount must be a positive integer.", ephemeral=True)
-        return
-    uid = str(user.id)
-    new_streak = clamp_min_zero(streaks.get(uid, 0) - amount)
-    streaks[uid] = new_streak
-    save_all_scores()
-    await interaction.response.send_message(f"❌ Removed {amount} streak day(s) from {user.mention}. New streak: {streaks[uid]}", ephemeral=True)
 
 @tree.command(name="purge", description="Delete all messages in this channel")
 @app_commands.checks.has_permissions(administrator=True)
