@@ -218,6 +218,16 @@ async def submitriddle(interaction: discord.Interaction, question: str, answer: 
     await interaction.response.send_message(embed=embed)
 
 
+def ensure_user_initialized(uid: str):
+    # Initialize user data if missing
+    if uid not in scores:
+        scores[uid] = 0
+    if uid not in streaks:
+        streaks[uid] = 0
+    if uid not in submission_dates:
+        submission_dates[uid] = None
+
+
 @tree.command(name="addpoints", description="Add points to a user")
 @app_commands.describe(user="The user to add points to", amount="Number of points to add (positive integer)")
 @app_commands.checks.has_permissions(manage_guild=True)
@@ -225,10 +235,16 @@ async def addpoints(interaction: discord.Interaction, user: discord.User, amount
     if amount <= 0:
         await interaction.response.send_message("❌ Amount must be a positive integer.", ephemeral=True)
         return
+
     uid = str(user.id)
-    scores[uid] = scores.get(uid, 0) + amount
+    ensure_user_initialized(uid)
+
+    scores[uid] += amount
     save_all_scores()
-    await interaction.response.send_message(f"✅ Added {amount} point(s) to {user.mention}. New score: {scores[uid]}", ephemeral=True)
+    await interaction.response.send_message(
+        f"✅ Added {amount} point(s) to {user.mention}. New score: {scores[uid]}",
+        ephemeral=True
+    )
 
 
 @tree.command(name="addstreak", description="Add streak days to a user")
@@ -238,10 +254,16 @@ async def addstreak(interaction: discord.Interaction, user: discord.User, amount
     if amount <= 0:
         await interaction.response.send_message("❌ Amount must be a positive integer.", ephemeral=True)
         return
+
     uid = str(user.id)
-    streaks[uid] = streaks.get(uid, 0) + amount
+    ensure_user_initialized(uid)
+
+    streaks[uid] += amount
     save_all_scores()
-    await interaction.response.send_message(f"✅ Added {amount} streak day(s) to {user.mention}. New streak: {streaks[uid]}", ephemeral=True)
+    await interaction.response.send_message(
+        f"✅ Added {amount} streak day(s) to {user.mention}. New streak: {streaks[uid]}",
+        ephemeral=True
+    )
 
 
 @tree.command(name="removepoints", description="Remove points from a user")
@@ -251,11 +273,36 @@ async def removepoints(interaction: discord.Interaction, user: discord.User, amo
     if amount <= 0:
         await interaction.response.send_message("❌ Amount must be a positive integer.", ephemeral=True)
         return
+
     uid = str(user.id)
-    new_score = clamp_min_zero(scores.get(uid, 0) - amount)
-    scores[uid] = new_score
+    ensure_user_initialized(uid)
+
+    scores[uid] = clamp_min_zero(scores[uid] - amount)
     save_all_scores()
-    await interaction.response.send_message(f"❌ Removed {amount} point(s) from {user.mention}. New score: {scores[uid]}", ephemeral=True)
+    await interaction.response.send_message(
+        f"❌ Removed {amount} point(s) from {user.mention}. New score: {scores[uid]}",
+        ephemeral=True
+    )
+
+
+@tree.command(name="removestreak", description="Remove streak days from a user")
+@app_commands.describe(user="The user to remove streak days from", amount="Number of streak days to remove (positive integer)")
+@app_commands.checks.has_permissions(manage_guild=True)
+async def removestreak(interaction: discord.Interaction, user: discord.User, amount: int):
+    if amount <= 0:
+        await interaction.response.send_message("❌ Amount must be a positive integer.", ephemeral=True)
+        return
+
+    uid = str(user.id)
+    ensure_user_initialized(uid)
+
+    streaks[uid] = clamp_min_zero(streaks[uid] - amount)
+    save_all_scores()
+    await interaction.response.send_message(
+        f"❌ Removed {amount} streak day(s) from {user.mention}. New streak: {streaks[uid]}",
+        ephemeral=True
+    )
+
 
 
 @tree.command(name="ranks", description="View all rank tiers and how to earn them")
