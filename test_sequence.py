@@ -1,14 +1,33 @@
-# test_sequence.py
+import asyncio
+import discord
+import os
 
-def setup_test_sequence_commands(tree):
-    @tree.command(name="run_test_sequence", description="Run a full test riddle workflow")
-    async def run_test_sequence(interaction: discord.Interaction):
-        # Your command implementation here
-        await interaction.response.send_message("Test sequence started!")
+# State variables
+current_riddle = None
+current_answer_revealed = False
+correct_users = set()
+guess_attempts = {}
+deducted_for_user = set()
 
-@tree.command(name="run_test_sequence", description="Run a full test riddle workflow")
-@app_commands.checks.has_permissions(administrator=True)
-async def run_test_sequence(interaction: discord.Interaction):
+scores = {}   # Load your actual scores dict here
+streaks = {}  # Load your actual streaks dict here
+
+def get_rank(score, streak):
+    # Example rank logic placeholder
+    if score > 50:
+        return "Master"
+    if score > 20:
+        return "Expert"
+    return "Beginner"
+
+def save_all_scores():
+    # Implement your actual save logic here, e.g. write to JSON or DB
+    pass
+
+def clamp_min_zero(value):
+    return max(0, value)
+
+async def run_test_sequence(interaction, client):
     await interaction.response.defer(ephemeral=True)
 
     channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
@@ -19,7 +38,6 @@ async def run_test_sequence(interaction: discord.Interaction):
 
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
-    # Define a test riddle
     current_riddle = {
         "id": 9999,
         "question": "What has keys but can't open locks?",
@@ -31,20 +49,16 @@ async def run_test_sequence(interaction: discord.Interaction):
     guess_attempts = {}
     deducted_for_user = set()
 
-    # Post the riddle embed
     embed = discord.Embed(
         title=f"🧩 Riddle of the Day #{current_riddle['id']}",
         description=f"**Riddle:** {current_riddle['question']}\n\n_(Riddle submitted by **Riddle of the Day Bot**)_",
         color=discord.Color.blurple()
     )
     await channel.send(embed=embed)
-
     await interaction.followup.send("✅ Test riddle posted. Waiting 30 seconds before revealing answer...", ephemeral=True)
 
-    # Wait 30 seconds to simulate answering period
     await asyncio.sleep(30)
 
-    # Reveal the answer
     answer_embed = discord.Embed(
         title=f"🔔 Answer to Riddle #{current_riddle['id']}",
         description=f"**Answer:** {current_riddle['answer']}\n\n💡 Use `/submitriddle` to submit your own riddle!",
@@ -52,7 +66,6 @@ async def run_test_sequence(interaction: discord.Interaction):
     )
     await channel.send(embed=answer_embed)
 
-    # Post congratulations or no guesses message
     if correct_users:
         congrats_lines = []
         for user_id_str in correct_users:
@@ -70,7 +83,6 @@ async def run_test_sequence(interaction: discord.Interaction):
     else:
         await channel.send("😢 No one guessed the riddle correctly during the test.")
 
-    # Mark answer as revealed and clear state for next test
     current_answer_revealed = True
     correct_users.clear()
     guess_attempts.clear()
@@ -79,14 +91,9 @@ async def run_test_sequence(interaction: discord.Interaction):
 
     await channel.send("✅ Test sequence completed. You can run `/run_test_sequence` again to test.")
 
-# Helper function to clamp values >= 0
-def clamp_min_zero(value):
-    return max(0, value)
+# Similarly, implement points and streak modification logic here as functions:
 
-@tree.command(name="addpoints", description="Add points to a user")
-@app_commands.describe(user="The user to add points to", amount="Number of points to add (positive integer)")
-@app_commands.checks.has_permissions(manage_guild=True)
-async def addpoints(interaction: discord.Interaction, user: discord.User, amount: int):
+async def add_points(interaction, user, amount):
     if amount <= 0:
         await interaction.response.send_message("❌ Amount must be a positive integer.", ephemeral=True)
         return
@@ -95,10 +102,7 @@ async def addpoints(interaction: discord.Interaction, user: discord.User, amount
     save_all_scores()
     await interaction.response.send_message(f"✅ Added {amount} point(s) to {user.mention}. New score: {scores[uid]}", ephemeral=True)
 
-@tree.command(name="addstreak", description="Add streak days to a user")
-@app_commands.describe(user="The user to add streak days to", amount="Number of streak days to add (positive integer)")
-@app_commands.checks.has_permissions(manage_guild=True)
-async def addstreak(interaction: discord.Interaction, user: discord.User, amount: int):
+async def add_streak(interaction, user, amount):
     if amount <= 0:
         await interaction.response.send_message("❌ Amount must be a positive integer.", ephemeral=True)
         return
@@ -107,10 +111,7 @@ async def addstreak(interaction: discord.Interaction, user: discord.User, amount
     save_all_scores()
     await interaction.response.send_message(f"✅ Added {amount} streak day(s) to {user.mention}. New streak: {streaks[uid]}", ephemeral=True)
 
-@tree.command(name="removepoints", description="Remove points from a user")
-@app_commands.describe(user="The user to remove points from", amount="Number of points to remove (positive integer)")
-@app_commands.checks.has_permissions(manage_guild=True)
-async def removepoints(interaction: discord.Interaction, user: discord.User, amount: int):
+async def remove_points(interaction, user, amount):
     if amount <= 0:
         await interaction.response.send_message("❌ Amount must be a positive integer.", ephemeral=True)
         return
@@ -120,10 +121,7 @@ async def removepoints(interaction: discord.Interaction, user: discord.User, amo
     save_all_scores()
     await interaction.response.send_message(f"❌ Removed {amount} point(s) from {user.mention}. New score: {scores[uid]}", ephemeral=True)
 
-@tree.command(name="removestreak", description="Remove streak days from a user")
-@app_commands.describe(user="The user to remove streak days from", amount="Number of streak days to remove (positive integer)")
-@app_commands.checks.has_permissions(manage_guild=True)
-async def removestreak(interaction: discord.Interaction, user: discord.User, amount: int):
+async def remove_streak(interaction, user, amount):
     if amount <= 0:
         await interaction.response.send_message("❌ Amount must be a positive integer.", ephemeral=True)
         return
@@ -132,4 +130,3 @@ async def removestreak(interaction: discord.Interaction, user: discord.User, amo
     streaks[uid] = new_streak
     save_all_scores()
     await interaction.response.send_message(f"❌ Removed {amount} streak day(s) from {user.mention}. New streak: {streaks[uid]}", ephemeral=True)
-
