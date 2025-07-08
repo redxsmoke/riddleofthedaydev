@@ -333,8 +333,7 @@ async def leaderboard(interaction: discord.Interaction):
     
     leaderboard_embed.description = "\n".join(description_lines)
     
-    await channel.send(embed=leaderboard_embed)
-
+    await interaction.response.send_message(embed=leaderboard_embed)
 
     score_lines = []
     for idx, (user_id, score_val) in enumerate(top_scores, start=1):
