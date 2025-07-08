@@ -1,4 +1,10 @@
-from main import tree
+# test_sequence.py
+
+def setup_test_sequence_commands(tree):
+    @tree.command(name="run_test_sequence", description="Run a full test riddle workflow")
+    async def run_test_sequence(interaction: discord.Interaction):
+        # Your command implementation here
+        await interaction.response.send_message("Test sequence started!")
 
 @tree.command(name="run_test_sequence", description="Run a full test riddle workflow")
 @app_commands.checks.has_permissions(administrator=True)
