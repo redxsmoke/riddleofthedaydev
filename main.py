@@ -348,6 +348,33 @@ async def ranks(interaction: discord.Interaction):
 
 
 
+def get_rank(score, streak):
+    if scores:
+        max_score = max(scores.values())
+        if score == max_score and max_score > 0:
+            return "👑 🍣 Master Sushi Chef"
+    if streak >= 30:
+        return "💚🔥 Wasabi Warlord"
+    elif streak >= 20:
+        return "🥢 Rollmaster Ronin"
+    elif streak >= 10:
+        return "🍣 Nigiri Ninja"
+    elif streak >= 5:
+        return "🍤 Tempura Titan"
+    elif streak >= 3:
+        return "🔥 Streak Samurai"
+    if score <= 5:
+        return "🍽️ Sushi Newbie"
+    elif 6 <= score <= 15:
+        return "🍣 Maki Novice"
+    elif 16 <= score <= 25:
+        return "🍤 Sashimi Skilled"
+    elif 26 <= score <= 50:
+        return "🧠 Brainy Botan"
+    else:
+        return "🧪 Sushi Einstein"
+
+
 async def create_leaderboard_embed():
     load_all_data()  # Reload latest data from disk
 
@@ -381,16 +408,11 @@ async def create_leaderboard_embed():
     return leaderboard_embed
 
 
-
 @tree.command(name="leaderboard", description="Show the top scores and streaks")
 async def leaderboard(interaction: discord.Interaction):
     load_all_data()  # Reload latest data from disk before building embed
     embed = await create_leaderboard_embed()
     await interaction.response.send_message(embed=embed)
-
-
-
-
 
 
 @tree.command(name="purge", description="Delete all messages in this channel")
