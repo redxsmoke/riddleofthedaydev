@@ -11,6 +11,11 @@ client = discord.Client(intents=intents)
 
 tree = app_commands.CommandTree(client)
 
+@tree.command(name="run_test_sequence", description="Run a full test riddle workflow")
+async def run_test_sequence_command(interaction: discord.Interaction):
+    await test_sequence.run_test_sequence(interaction)
+
+
 import asyncio
 import json
 import os
