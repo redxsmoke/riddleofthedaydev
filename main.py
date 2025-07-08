@@ -258,6 +258,48 @@ async def removepoints(interaction: discord.Interaction, user: discord.User, amo
     await interaction.response.send_message(f"❌ Removed {amount} point(s) from {user.mention}. New score: {scores[uid]}", ephemeral=True)
 
 
+@tree.command(name="ranks", description="View all rank tiers and how to earn them")
+async def ranks(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="📊 Riddle Rank Tiers",
+        description="Earn score and build streaks to level up your riddle mastery!",
+        color=discord.Color.purple()
+    )
+
+    embed.add_field(
+        name="👑 Top Rank",
+        value="**🍣 Master Sushi Chef** — Awarded to the user(s) with the highest score.",
+        inline=False
+    )
+
+    embed.add_field(
+        name="🔥 Streak-Based Titles",
+        value=(
+            "• 🔥 **Streak Samurai** — 3-day streak\n"
+            "• 🍤 **Tempura Titan** — 5-day streak\n"
+            "• 🍣 **Nigiri Ninja** — 10-day streak\n"
+            "• 🥢 **Rollmaster Ronin** — 20-day streak\n"
+            "• 💚🔥 **Wasabi Warlord** — 30+ day streak"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="🎯 Score-Based Ranks",
+        value=(
+            "• 🍽️ **Sushi Newbie** — 0–5 points\n"
+            "• 🍣 **Maki Novice** — 6–15 points\n"
+            "• 🍤 **Sashimi Skilled** — 16–25 points\n"
+            "• 🧠 **Brainy Botan** — 26–50 points\n"
+            "• 🧪 **Sushi Einstein** — 51+ points"
+        ),
+        inline=False
+    )
+
+    embed.set_footer(text="Ranks update automatically based on your progress.")
+    await interaction.response.send_message(embed=embed)
+
+
 @tree.command(name="leaderboard", description="Show the top scores and streaks")
 async def leaderboard(interaction: discord.Interaction):
     # Sort top 10 by score descending
@@ -265,10 +307,34 @@ async def leaderboard(interaction: discord.Interaction):
     # Sort top 10 by streak descending
     top_streaks = sorted(streaks.items(), key=lambda x: x[1], reverse=True)[:10]
 
-    embed = discord.Embed(
-        title="🏆 Riddle Leaderboard",
-        color=discord.Color.gold()
+    leaderboard_embed = discord.Embed(
+        title="🏆 Riddle of the Day Leaderboard",
+        color=discord.Color.purple()
     )
+    
+    # Example user data — replace with actual sorted leaderboard entries
+    top_users = [
+        {
+            "mention": "𝐈𝐳𝐳𝐲𝐁𝐚𝐧",
+            "score": 1,
+            "streak": 1,
+            "rank": "🍣 Master Sushi Chef (Top scorer)"
+        },
+        # Add more user dicts here...
+    ]
+    
+    description_lines = []
+    for user in top_users:
+        description_lines.append(f"**{user['mention']}**:")
+        description_lines.append(f"• Score: **{user['score']}**")
+        description_lines.append(f"• Streak: 🔥 **{user['streak']}**")
+        description_lines.append(f"• Rank: {user['rank']}")
+        description_lines.append("")  # Blank line between users
+    
+    leaderboard_embed.description = "\n".join(description_lines)
+    
+    await channel.send(embed=leaderboard_embed)
+
 
     score_lines = []
     for idx, (user_id, score_val) in enumerate(top_scores, start=1):
@@ -367,27 +433,36 @@ def setup_test_sequence_commands(tree, client):
         await channel.send(embed=answer_embed)
 
         if correct_users:
-            congrats_lines = []
+            congrats_embed = discord.Embed(
+                title="🎊 Congratulations to the following users who solved today's riddle! 🎊",
+                color=discord.Color.gold()
+            )
+            
+            description_lines = []
             for user_id_str in correct_users:
                 try:
                     user = await client.fetch_user(int(user_id_str))
                     sv = scores.get(str(user.id), 0)
                     st = streaks.get(str(user.id), 0)
                     rank = get_rank(sv, st)
-                    congrats_lines.append(f"{user.mention} — Score: **{sv}**, Streak: 🔥{st}, Rank: {rank}")
+                    description_lines.append(f"• {user.mention}")
+                    description_lines.append(f"    - Score: {sv}")
+                    description_lines.append(f"    - Streak: 🔥{st}")
+                    description_lines.append(f"    - Rank: {rank}")
                 except Exception:
-                    congrats_lines.append(f"<@{user_id_str}>")
-            congrats_msg = "🎉 Congratulations to:\n" + "\n".join(congrats_lines)
-            await channel.send(congrats_msg)
+                    description_lines.append(f"• <@{user_id_str}> (Data unavailable)")
+        
+            congrats_embed.description = "\n".join(description_lines)
+            await channel.send(embed=congrats_embed)
         else:
             await channel.send("😢 No one guessed the riddle correctly during the test.")
-
+        
         current_answer_revealed = True
         correct_users.clear()
         guess_attempts.clear()
         deducted_for_user.clear()
         current_riddle = None
-
+        
         await channel.send("✅ Test sequence completed. You can run `/run_test_sequence` again to test.")
 
 
@@ -463,7 +538,8 @@ async def on_message(message):
         except:
             pass
         correct_guess_embed = discord.Embed(
-            description=f"🎉 Correct, {message.author.mention}! Your total score: {scores[user_id]}",
+            title="You guess correctly!",
+            description=f"🥳 Correct, {message.author.mention}! Your total score: {scores[user_id]}",
             color=discord.Color.green()
         )
         await message.channel.send(embed=correct_guess_embed)
