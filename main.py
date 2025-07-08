@@ -257,6 +257,34 @@ async def removepoints(interaction: discord.Interaction, user: discord.User, amo
     await interaction.response.send_message(f"❌ Removed {amount} point(s) from {user.mention}. New score: {scores[uid]}", ephemeral=True)
 
 
+@tree.command(name="leaderboard", description="Show the top scores and streaks")
+async def leaderboard(interaction: discord.Interaction):
+    # Sort top 10 by score descending
+    top_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:10]
+    # Sort top 10 by streak descending
+    top_streaks = sorted(streaks.items(), key=lambda x: x[1], reverse=True)[:10]
+
+    embed = discord.Embed(
+        title="🏆 Riddle Leaderboard",
+        color=discord.Color.gold()
+    )
+
+    score_lines = []
+    for idx, (user_id, score_val) in enumerate(top_scores, start=1):
+        user = await client.fetch_user(int(user_id))
+        score_lines.append(f"#{idx} — {user.display_name}: **{score_val}** points")
+
+    streak_lines = []
+    for idx, (user_id, streak_val) in enumerate(top_streaks, start=1):
+        user = await client.fetch_user(int(user_id))
+        streak_lines.append(f"#{idx} — {user.display_name}: 🔥 **{streak_val}** day streak")
+
+    embed.add_field(name="Top Scores", value="\n".join(score_lines) if score_lines else "No scores yet.", inline=True)
+    embed.add_field(name="Top Streaks", value="\n".join(streak_lines) if streak_lines else "No streaks yet.", inline=True)
+
+    await interaction.response.send_message(embed=embed)
+
+
 @tree.command(name="removestreak", description="Remove streak days from a user")
 @app_commands.describe(user="The user to remove streak days from", amount="Number of streak days to remove (positive integer)")
 @app_commands.checks.has_permissions(manage_guild=True)
