@@ -348,21 +348,7 @@ async def ranks(interaction: discord.Interaction):
 
 
 
-def get_rank(score, streak):
-    if scores:
-        max_score = max(scores.values())
-        if score == max_score and max_score > 0:
-            return "👑 🍣 Master Sushi Chef"
-    if streak >= 30:
-        return "💚🔥 Wasabi Warlord"
-    elif streak >= 20:
-        return "🥢 Rollmaster Ronin"
-    elif streak >= 10:
-        return "🍣 Nigiri Ninja"
-    elif streak >= 5:
-        return "🍤 Tempura Titan"
-    elif streak >= 3:
-        return "🔥 Streak Samurai"
+def get_rank(score):
     if score <= 5:
         return "🍽️ Sushi Newbie"
     elif 6 <= score <= 15:
@@ -374,12 +360,27 @@ def get_rank(score, streak):
     else:
         return "🧪 Sushi Einstein"
 
+def get_streak_rank(streak):
+    if streak >= 30:
+        return "💚🔥 Wasabi Warlord"
+    elif streak >= 20:
+        return "🥢 Rollmaster Ronin"
+    elif streak >= 10:
+        return "🍣 Nigiri Ninja"
+    elif streak >= 5:
+        return "🍤 Tempura Titan"
+    elif streak >= 3:
+        return "🔥 Streak Samurai"
+    else:
+        return None  # No title
+
 
 async def create_leaderboard_embed():
     load_all_data()  # Reload latest data from disk
 
-    # Top scores sorted descending by score
+    # Top scores sorted descending
     top_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:10]
+    max_score = top_scores[0][1] if top_scores else 0
 
     leaderboard_embed = discord.Embed(
         title="🏆 Riddle of the Day Leaderboard",
@@ -387,17 +388,33 @@ async def create_leaderboard_embed():
     )
 
     description_lines = []
+
     for idx, (user_id, score_val) in enumerate(top_scores, start=1):
         try:
             user = await client.fetch_user(int(user_id))
             streak_val = streaks.get(user_id, 0)
-            rank = get_rank(score_val, streak_val)
 
+            # Score line
+            score_line = f"    • Score: {score_val}"
+            if score_val == max_score and max_score > 0:
+                score_line += " — 👑 🍣 Master Sushi Chef"
+
+            # Rank line
+            rank = get_rank(score_val)
+            rank_line = f"    • Rank: {rank}"
+
+            # Streak line
+            streak_title = get_streak_rank(streak_val)
+            streak_line = f"    • Streak: 🔥{streak_val}"
+            if streak_title:
+                streak_line += f" — {streak_title}"
+
+            # Combine
             description_lines.append(f"#{idx} {user.display_name}:")
-            description_lines.append(f"    • Score: {score_val}")
-            description_lines.append(f"    • Streak: 🔥{streak_val}")
-            description_lines.append(f"    • Rank: {rank}")
-            description_lines.append("")  # Blank line between users
+            description_lines.append(score_line)
+            description_lines.append(rank_line)
+            description_lines.append(streak_line)
+            description_lines.append("")  # Blank line between entries
         except Exception:
             description_lines.append(f"#{idx} <@{user_id}> (User data unavailable)")
             description_lines.append("")
@@ -406,6 +423,7 @@ async def create_leaderboard_embed():
     leaderboard_embed.set_footer(text="Ranks update automatically based on your progress.")
 
     return leaderboard_embed
+
 
 
 @tree.command(name="leaderboard", description="Show the top scores and streaks")
@@ -483,32 +501,59 @@ def setup_test_sequence_commands(tree, client):
         await channel.send(embed=answer_embed)
 
         if correct_users:
+            # Determine top score for Master Sushi Chef
+            max_score = max(scores.values()) if scores else 0
+        
             congrats_embed = discord.Embed(
                 title="🎊 Congratulations to the following users who solved today's riddle! 🎊",
                 color=discord.Color.gold()
             )
-            
+        
             description_lines = []
             for idx, user_id_str in enumerate(correct_users, start=1):
                 try:
                     user = await client.fetch_user(int(user_id_str))
-                    sv = scores.get(str(user.id), 0)
-                    st = streaks.get(str(user.id), 0)
-                    rank = get_rank(sv, st)
+                    score_val = scores.get(user_id_str, 0)
+                    streak_val = streaks.get(user_id_str, 0)
+                    rank = get_rank(score_val, streak_val)
+        
+                    # Score line (include 👑 only if top scorer)
+                    score_line = f"{score_val}"
+                    if score_val == max_score and max_score > 0:
+                        score_line += " - 👑 🍣 Master Sushi Chef"
+        
+                    # Streak rank
+                    if streak_val >= 30:
+                        streak_rank = "💚🔥 Wasabi Warlord"
+                    elif streak_val >= 20:
+                        streak_rank = "🥢 Rollmaster Ronin"
+                    elif streak_val >= 10:
+                        streak_rank = "🍣 Nigiri Ninja"
+                    elif streak_val >= 5:
+                        streak_rank = "🍤 Tempura Titan"
+                    elif streak_val >= 3:
+                        streak_rank = "🔥 Streak Samurai"
+                    else:
+                        streak_rank = None
+        
+                    # Build lines
                     description_lines.append(f"#{idx} {user.display_name}:")
-                    description_lines.append(f"    • Score: {sv}")
-                    description_lines.append(f"    • Streak: 🔥{st}")
+                    description_lines.append(f"    • Score: {score_line}")
                     description_lines.append(f"    • Rank: {rank}")
-                    description_lines.append("")  # Blank line between users
+                    streak_text = f"🔥{streak_val}"
+                    if streak_rank:
+                        streak_text += f" - {streak_rank}"
+                    description_lines.append(f"    • Streak: {streak_text}")
+                    description_lines.append("")
+        
                 except Exception:
                     description_lines.append(f"#{idx} <@{user_id_str}> (Data unavailable)")
                     description_lines.append("")
         
             congrats_embed.description = "\n".join(description_lines)
-        
             await channel.send(embed=congrats_embed)
         else:
-            await channel.send("😢 No one guessed the riddle correctly during the test.")
+            await channel.send("😢 No one guessed the riddle correctly today.")
 
 
         
