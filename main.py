@@ -347,12 +347,15 @@ async def ranks(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 
-@tree.command(name="leaderboard", description="Show the top scores and streaks")
-async def leaderboard(interaction: discord.Interaction):
+
+async def create_leaderboard_embed():
     load_all_data()  # Reload latest data from disk
 
-    # Sort top 10 by score descending
+    # Top scores sorted descending by score
     top_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:10]
+
+    # Top streaks sorted descending by streak
+    top_streaks = sorted(streaks.items(), key=lambda x: x[1], reverse=True)[:10]
 
     leaderboard_embed = discord.Embed(
         title="🏆 Riddle of the Day Leaderboard",
@@ -377,9 +380,7 @@ async def leaderboard(interaction: discord.Interaction):
 
     leaderboard_embed.description = "\n".join(description_lines)
 
-    await interaction.response.send_message(embed=leaderboard_embed)
-
-    # Also add separate fields for top scores and top streaks as a summary
+    # Prepare summary fields
     score_lines = []
     for idx, (user_id, score_val) in enumerate(top_scores, start=1):
         try:
@@ -407,7 +408,18 @@ async def leaderboard(interaction: discord.Interaction):
         inline=True
     )
 
-    await interaction.response.send_message(embed=leaderboard_embed)
+    leaderboard_embed.set_footer(text="Ranks update automatically based on your progress.")
+
+    return leaderboard_embed
+
+
+@tree.command(name="leaderboard", description="Show the top scores and streaks")
+async def leaderboard(interaction: discord.Interaction):
+    load_all_data()  # Reload latest data from disk before building embed
+    embed = await create_leaderboard_embed()
+    await interaction.response.send_message(embed=embed)
+
+
 
 
 
@@ -500,9 +512,44 @@ def setup_test_sequence_commands(tree, client):
                     description_lines.append(f"• <@{user_id_str}> (Data unavailable)")
         
             congrats_embed.description = "\n".join(description_lines)
+        
+            # --- Add leaderboard summary fields here ---
+        
+            # Prepare top scores summary
+            top_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:10]
+            score_lines = []
+            for idx, (user_id, score_val) in enumerate(top_scores, start=1):
+                try:
+                    user = await client.fetch_user(int(user_id))
+                    score_lines.append(f"#{idx} — {user.display_name}: **{score_val}** points")
+                except Exception:
+                    score_lines.append(f"#{idx} — <@{user_id}>: **{score_val}** points")
+        
+            # Prepare top streaks summary
+            top_streaks = sorted(streaks.items(), key=lambda x: x[1], reverse=True)[:10]
+            streak_lines = []
+            for idx, (user_id, streak_val) in enumerate(top_streaks, start=1):
+                try:
+                    user = await client.fetch_user(int(user_id))
+                    streak_lines.append(f"#{idx} — {user.display_name}: 🔥 **{streak_val}** day streak")
+                except Exception:
+                    streak_lines.append(f"#{idx} — <@{user_id}>: 🔥 **{streak_val}** day streak")
+        
+            congrats_embed.add_field(
+                name="Top Scores",
+                value="\n".join(score_lines) if score_lines else "No scores yet.",
+                inline=True
+            )
+            congrats_embed.add_field(
+                name="Top Streaks",
+                value="\n".join(streak_lines) if streak_lines else "No streaks yet.",
+                inline=True
+            )
+        
             await channel.send(embed=congrats_embed)
         else:
             await channel.send("😢 No one guessed the riddle correctly during the test.")
+
         
         current_answer_revealed = True
         correct_users.clear()
