@@ -498,57 +498,27 @@ def setup_test_sequence_commands(tree, client):
             )
             
             description_lines = []
-            for user_id_str in correct_users:
+            for idx, user_id_str in enumerate(correct_users, start=1):
                 try:
                     user = await client.fetch_user(int(user_id_str))
                     sv = scores.get(str(user.id), 0)
                     st = streaks.get(str(user.id), 0)
                     rank = get_rank(sv, st)
-                    description_lines.append(f"• {user.mention}")
-                    description_lines.append(f"    - Score: {sv}")
-                    description_lines.append(f"    - Streak: 🔥{st}")
-                    description_lines.append(f"    - Rank: {rank}")
+                    description_lines.append(f"#{idx} {user.display_name}:")
+                    description_lines.append(f"    • Score: {sv}")
+                    description_lines.append(f"    • Streak: 🔥{st}")
+                    description_lines.append(f"    • Rank: {rank}")
+                    description_lines.append("")  # Blank line between users
                 except Exception:
-                    description_lines.append(f"• <@{user_id_str}> (Data unavailable)")
+                    description_lines.append(f"#{idx} <@{user_id_str}> (Data unavailable)")
+                    description_lines.append("")
         
             congrats_embed.description = "\n".join(description_lines)
-        
-            # --- Add leaderboard summary fields here ---
-        
-            # Prepare top scores summary
-            top_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:10]
-            score_lines = []
-            for idx, (user_id, score_val) in enumerate(top_scores, start=1):
-                try:
-                    user = await client.fetch_user(int(user_id))
-                    score_lines.append(f"#{idx} — {user.display_name}: **{score_val}** points")
-                except Exception:
-                    score_lines.append(f"#{idx} — <@{user_id}>: **{score_val}** points")
-        
-            # Prepare top streaks summary
-            top_streaks = sorted(streaks.items(), key=lambda x: x[1], reverse=True)[:10]
-            streak_lines = []
-            for idx, (user_id, streak_val) in enumerate(top_streaks, start=1):
-                try:
-                    user = await client.fetch_user(int(user_id))
-                    streak_lines.append(f"#{idx} — {user.display_name}: 🔥 **{streak_val}** day streak")
-                except Exception:
-                    streak_lines.append(f"#{idx} — <@{user_id}>: 🔥 **{streak_val}** day streak")
-        
-            congrats_embed.add_field(
-                name="Top Scores",
-                value="\n".join(score_lines) if score_lines else "No scores yet.",
-                inline=True
-            )
-            congrats_embed.add_field(
-                name="Top Streaks",
-                value="\n".join(streak_lines) if streak_lines else "No streaks yet.",
-                inline=True
-            )
         
             await channel.send(embed=congrats_embed)
         else:
             await channel.send("😢 No one guessed the riddle correctly during the test.")
+
 
         
         current_answer_revealed = True
