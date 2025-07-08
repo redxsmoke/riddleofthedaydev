@@ -352,10 +352,17 @@ def setup_test_sequence_commands(tree, client):
                     congrats_lines.append(f"{user.mention} — Score: **{sv}**, Streak: 🔥{st}, Rank: {rank}")
                 except Exception:
                     congrats_lines.append(f"<@{user_id_str}>")
-            congrats_msg = "🎉 Congratulations to:\n" + "\n".join(congrats_lines)
-            await channel.send(congrats_msg)
+        
+            congrats_msg = "\n".join(congrats_lines)
+            congrats_embed = discord.Embed(
+                title="🎉 Congratulations to:",
+                description=congrats_msg,
+                color=discord.Color.gold()
+            )
+            await channel.send(embed=congrats_embed)
         else:
             await channel.send("😢 No one guessed the riddle correctly during the test.")
+
 
         current_answer_revealed = True
         correct_users.clear()
@@ -424,21 +431,25 @@ async def on_message(message):
     # Check answer words
     user_words = clean_and_filter(content)
     answer_words = clean_and_filter(current_riddle["answer"])
-
+    
     if any(word in user_words for word in answer_words):
         # Correct
         correct_users.add(user_id)
         scores[user_id] = scores.get(user_id, 0) + 1
         streaks[user_id] = streaks.get(user_id, 0) + 1
         save_all_scores()
-        try: await message.delete()
-        except: pass
-        await message.channel.send(
-            f"🎉 Correct, {message.author.mention}! Your total score: {scores[user_id]}"
+        try:
+            await message.delete()
+        except:
+            pass
+        correct_guess_embed = discord.Embed(
+            description=f"🎉 Correct, {message.author.mention}! Your total score: {scores[user_id]}",
+            color=discord.Color.green()
         )
+        await message.channel.send(embed=correct_guess_embed)
     else:
         # Wrong
-        remaining = 5 - guess_attempts[user_id]
+        remaining = 5 - guess_attempts.get(user_id, 0)
         if remaining == 0 and user_id not in deducted_for_user:
             # Penalty on 5th wrong guess
             scores[user_id] = max(0, scores.get(user_id, 0) - 1)
@@ -454,8 +465,11 @@ async def on_message(message):
                 f"❌ Incorrect, {message.author.mention}. {remaining} guess(es) left.",
                 delete_after=6
             )
-        try: await message.delete()
-        except: pass
+        try:
+            await message.delete()
+        except:
+            pass
+
 
     # Send countdown until reveal
     now_utc = datetime.now(timezone.utc)
