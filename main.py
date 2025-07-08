@@ -501,7 +501,6 @@ def setup_test_sequence_commands(tree, client):
         await channel.send(embed=answer_embed)
 
         if correct_users:
-            # Determine top score for Master Sushi Chef
             max_score = max(scores.values()) if scores else 0
         
             congrats_embed = discord.Embed(
@@ -515,31 +514,23 @@ def setup_test_sequence_commands(tree, client):
                     user = await client.fetch_user(int(user_id_str))
                     score_val = scores.get(user_id_str, 0)
                     streak_val = streaks.get(user_id_str, 0)
-                    rank = get_rank(score_val, streak_val)
         
                     # Score line (include 👑 only if top scorer)
                     score_line = f"{score_val}"
                     if score_val == max_score and max_score > 0:
                         score_line += " - 👑 🍣 Master Sushi Chef"
         
+                    # Rank line
+                    rank = get_rank(score_val)
+        
                     # Streak rank
-                    if streak_val >= 30:
-                        streak_rank = "💚🔥 Wasabi Warlord"
-                    elif streak_val >= 20:
-                        streak_rank = "🥢 Rollmaster Ronin"
-                    elif streak_val >= 10:
-                        streak_rank = "🍣 Nigiri Ninja"
-                    elif streak_val >= 5:
-                        streak_rank = "🍤 Tempura Titan"
-                    elif streak_val >= 3:
-                        streak_rank = "🔥 Streak Samurai"
-                    else:
-                        streak_rank = None
+                    streak_rank = get_streak_rank(streak_val)
         
                     # Build lines
                     description_lines.append(f"#{idx} {user.display_name}:")
                     description_lines.append(f"    • Score: {score_line}")
                     description_lines.append(f"    • Rank: {rank}")
+        
                     streak_text = f"🔥{streak_val}"
                     if streak_rank:
                         streak_text += f" - {streak_rank}"
@@ -547,13 +538,26 @@ def setup_test_sequence_commands(tree, client):
                     description_lines.append("")
         
                 except Exception:
-                    description_lines.append(f"#{idx} <@{user_id_str}> (Data unavailable)")
+                    # Fallback if user fetch fails: show mention with stats
+                    score_val = scores.get(user_id_str, 0)
+                    rank = get_rank(score_val)
+                    streak_val = streaks.get(user_id_str, 0)
+                    streak_rank = get_streak_rank(streak_val)
+                    streak_text = f"🔥{streak_val}"
+                    if streak_rank:
+                        streak_text += f" - {streak_rank}"
+        
+                    description_lines.append(f"#{idx} <@{user_id_str}>")
+                    description_lines.append(f"    • Score: {score_val}")
+                    description_lines.append(f"    • Rank: {rank}")
+                    description_lines.append(f"    • Streak: {streak_text}")
                     description_lines.append("")
         
             congrats_embed.description = "\n".join(description_lines)
             await channel.send(embed=congrats_embed)
         else:
             await channel.send("😢 No one guessed the riddle correctly today.")
+
 
 
         
