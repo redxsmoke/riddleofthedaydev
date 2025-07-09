@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import tasks
-from discord import app_commands, Interaction, Embed
+from discord import Interaction, Embed
 from discord.ui import View, Button
 import asyncio
 import json
@@ -9,12 +9,10 @@ import os
 import re
 import random
 import traceback
-from datetime import datetime, timezone, time
+from datetime import datetime, timezone, time, timedelta
 from views import LeaderboardView, create_leaderboard_embed
 from db import create_db_pool, upsert_user, get_user, insert_submitted_question, get_all_submitted_questions
-from commands import setup  # make sure it's exported
-
-
+from commands import setup, set_db_pool  # make sure setup is exported
 
 intents = discord.Intents.default()
 intents.members = True
@@ -22,15 +20,7 @@ intents.message_content = True
 
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
-
-from commands import setup, set_db_pool  
-
  
-db_pool = await create_db_pool()
-set_db_pool(db_pool)
-setup(tree, client)
-
-
 
 
 # Constants for file names
@@ -531,23 +521,31 @@ async def daily_riddle_post_callback():
 
 @client.event
 async def on_ready():
-    await create_db_pool()
+    global db_pool
+    if hasattr(client, "initialized") and client.initialized:
+        return
+    client.initialized = True
+
+    db_pool = await create_db_pool()
+    set_db_pool(db_pool)
+
+    # If setup is async, await it; else just call it
+    maybe_coro = setup(tree, client)
+    if asyncio.iscoroutine(maybe_coro):
+        await maybe_coro
+
     print(f"Bot logged in as {client.user} (ID: {client.user.id})")
-
-    # Register your commands before syncing
-    setup(tree, client)
-
     try:
         synced = await tree.sync()
         print(f"Synced {len(synced)} commands.")
     except Exception as e:
         print(f"Failed to sync commands: {e}")
 
+    # Start background tasks here
     riddle_announcement.start()
     daily_riddle_post.start()
     reveal_riddle_answer.start()
 
- 
 
 if __name__ == "__main__":
     TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -555,7 +553,4 @@ if __name__ == "__main__":
         print("ERROR: DISCORD_BOT_TOKEN environment variable is not set.")
         exit(1)
 
-    
-
     client.run(TOKEN)
-    

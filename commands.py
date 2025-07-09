@@ -503,7 +503,7 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
                 embed = await self.get_page_embed()
                 await interaction.response.edit_message(embed=embed, view=self)
 
-    """
+    
     @tree.command(name="purge", description="Delete all messages in this channel")
     @app_commands.checks.has_permissions(administrator=True)
     async def purge(interaction: discord.Interaction):
@@ -642,6 +642,6 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             await channel.send("✅ Test sequence completed. You can run `/run_test_sequence` again to test.")
 
     setup_test_sequence_commands(tree, client)
-    """
+    
 
 setup(tree, client)
