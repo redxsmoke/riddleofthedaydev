@@ -9,6 +9,7 @@ import re
 import random
 import traceback
 from datetime import datetime, timezone, time
+from views import LeaderboardView
 
 
 # Constants for file names
@@ -515,11 +516,62 @@ async def listriddles(interaction: discord.Interaction):
 
 
 
-@tree.command(name="leaderboard", description="Show the top scores and streaks")
-async def leaderboard(interaction: discord.Interaction):
-    load_all_data()  # Reload latest data from disk before building embed
-    embed = await create_leaderboard_embed()
-    await interaction.response.send_message(embed=embed)
+@tree.command(name="leaderboard", description="Show the riddle leaderboard with pagination")
+async def leaderboard(interaction: Interaction):
+    await interaction.response.defer()
+
+    # Filter users with score or streak >= 1
+    filtered_users = [user_id for user_id in scores.keys() if (scores.get(user_id, 0) >= 1 or streaks.get(user_id, 0) >= 1)]
+
+    if not filtered_users:
+        await interaction.followup.send("No leaderboard data available.", ephemeral=True)
+        return
+
+    # Sort users descending by (score, streak)
+    filtered_users.sort(key=lambda u: (scores.get(u, 0), streaks.get(u, 0)), reverse=True)
+
+    view = LeaderboardView(client, filtered_users, per_page=10)
+    # Initial send
+    start = 0
+    end = 10
+    initial_users = filtered_users[start:end]
+
+    embed = Embed(
+        title=f"🏆 Riddle Leaderboard (Page 1 / {(len(filtered_users) - 1) // 10 + 1})",
+        color=discord.Color.gold()
+    )
+
+    description_lines = []
+    max_score = max((scores.get(u, 0) for u in filtered_users), default=0)
+
+    for idx, user_id_str in enumerate(initial_users, start=1):
+        try:
+            user = await client.fetch_user(int(user_id_str))
+            score_val = scores.get(user_id_str, 0)
+            streak_val = streaks.get(user_id_str, 0)
+
+            score_line = f"{score_val}"
+            if score_val == max_score and max_score > 0:
+                score_line += " - 👑 🍣 Master Sushi Chef"
+
+            rank = get_rank(score_val)
+            streak_rank = get_streak_rank(streak_val)
+            streak_text = f"🔥{streak_val}"
+            if streak_rank:
+                streak_text += f" - {streak_rank}"
+
+            description_lines.append(f"#{idx} {user.display_name}:")
+            description_lines.append(f"    • Score: {score_line}")
+            description_lines.append(f"    • Rank: {rank}")
+            description_lines.append(f"    • Streak: {streak_text}")
+            description_lines.append("")
+        except Exception:
+            description_lines.append(f"#{idx} <@{user_id_str}> (failed to fetch user)")
+            description_lines.append("")
+
+    embed.description = "\n".join(description_lines) or "No users to display."
+
+    await interaction.followup.send(embed=embed, view=view)
 
 """
 @tree.command(name="purge", description="Delete all messages in this channel")
