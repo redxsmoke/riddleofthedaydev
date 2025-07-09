@@ -5,6 +5,18 @@ import os
 
 db_pool = None
 
+async def load_all_user_scores():
+    global scores, streaks
+    scores = {}
+    streaks = {}
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch("SELECT user_id, score, streak FROM users")
+        for row in rows:
+            uid = str(row["user_id"])
+            scores[uid] = row["score"]
+            streaks[uid] = row["streak"]
+
+
 async def create_db_pool():
     global db_pool
     db_pool = await asyncpg.create_pool(dsn=os.getenv("DATABASE_URL"))
