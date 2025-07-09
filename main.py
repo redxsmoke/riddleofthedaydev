@@ -13,8 +13,17 @@ from datetime import datetime, timezone, time
 from views import LeaderboardView, create_leaderboard_embed
 from db import create_db_pool, upsert_user, get_user, insert_submitted_question, get_all_submitted_questions
 from commands import setup  # make sure it's exported
-setup(tree, client)
 
+
+
+intents = discord.Intents.default()
+intents.members = True
+intents.message_content = True
+
+client = discord.Client(intents=intents)
+tree = app_commands.CommandTree(client)
+
+from commands import setup  # import after client & tree defined
  
 
 
