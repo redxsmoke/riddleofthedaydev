@@ -34,7 +34,7 @@ def get_streak_rank(streak):
     else:
         return None
 
-
+tree = app_commands.CommandTree(client)
 @tree.command(name="myranks", description="Show your riddle score, streak, and rank")
 async def myranks(interaction: discord.Interaction):
     uid = interaction.user.id
