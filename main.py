@@ -537,7 +537,7 @@ if __name__ == "__main__":
         print("ERROR: DISCORD_BOT_TOKEN environment variable is not set.")
         exit(1)
 
-    setup_commands(tree)
+    
 
     client.run(TOKEN)
     
