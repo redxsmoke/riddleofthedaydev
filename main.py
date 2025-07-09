@@ -410,54 +410,7 @@ def get_streak_rank(streak):
         return None  # No title
 
 
-async def create_leaderboard_embed():
-    load_all_data()  # Reload latest data from disk
 
-    # Top scores sorted descending
-    top_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:10]
-    max_score = top_scores[0][1] if top_scores else 0
-
-    leaderboard_embed = discord.Embed(
-        title="🏆 Riddle of the Day Leaderboard",
-        color=discord.Color.purple()
-    )
-
-    description_lines = []
-
-    for idx, (user_id, score_val) in enumerate(top_scores, start=1):
-        try:
-            user = await client.fetch_user(int(user_id))
-            streak_val = streaks.get(user_id, 0)
-
-            # Score line
-            score_line = f"    • Score: {score_val}"
-            if score_val == max_score and max_score > 0:
-                score_line += " — 👑 🍣 Master Sushi Chef"
-
-            # Rank line
-            rank = get_rank(score_val)
-            rank_line = f"    • Rank: {rank}"
-
-            # Streak line
-            streak_title = get_streak_rank(streak_val)
-            streak_line = f"    • Streak: 🔥{streak_val}"
-            if streak_title:
-                streak_line += f" — {streak_title}"
-
-            # Combine
-            description_lines.append(f"#{idx} {user.display_name}:")
-            description_lines.append(score_line)
-            description_lines.append(rank_line)
-            description_lines.append(streak_line)
-            description_lines.append("")  # Blank line between entries
-        except Exception:
-            description_lines.append(f"#{idx} <@{user_id}> (User data unavailable)")
-            description_lines.append("")
-
-    leaderboard_embed.description = "\n".join(description_lines)
-    leaderboard_embed.set_footer(text="Ranks update automatically based on your progress.")
-
-    return leaderboard_embed
 
 @tree.command(name="removeriddle", description="Remove a riddle by its number (ID)")
 @app_commands.describe(riddle_id="The ID number of the riddle to remove")
