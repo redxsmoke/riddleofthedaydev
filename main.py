@@ -530,7 +530,7 @@ async def on_ready():
     print(f"Bot logged in as {client.user} (ID: {client.user.id})")
 
     # Register your commands before syncing
-    await setup(tree, client)
+    setup(tree, client)
 
     try:
         synced = await tree.sync()
@@ -538,8 +538,8 @@ async def on_ready():
     except Exception as e:
         print(f"Failed to sync commands: {e}")
 
-    daily_riddle_post.start()
     riddle_announcement.start()
+    daily_riddle_post.start()
     reveal_riddle_answer.start()
 
  
