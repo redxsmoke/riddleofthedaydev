@@ -9,7 +9,8 @@ import re
 import random
 import traceback
 from datetime import datetime, timezone, time
-from views import LeaderboardView
+from views import LeaderboardView, create_leaderboard_embed
+
 
 
 # Constants for file names
@@ -180,6 +181,31 @@ def get_rank(score, streak):
         return "Brainy Botan 🧠"
     else:
         return "Sushi Einstein 🧪"
+
+@tree.command(name="myranks", description="Show your riddle score, streak, and rank")
+async def myranks(interaction: discord.Interaction):
+    user_id = str(interaction.user.id)
+    score_val = scores.get(user_id, 0)
+    streak_val = streaks.get(user_id, 0)
+    rank = get_rank(score_val)
+    streak_rank = get_streak_rank(streak_val)
+
+    embed = discord.Embed(
+        title=f"📊 Your Riddle Stats, {interaction.user.display_name}",
+        color=discord.Color.green()
+    )
+
+    score_text = f"Score: {score_val} {'🍣' if score_val > 0 else ''}"
+    streak_text = f"Streak: 🔥{streak_val}"
+    if streak_rank:
+        streak_text += f" — {streak_rank}"
+
+    embed.add_field(name="Score", value=score_text, inline=False)
+    embed.add_field(name="Streak", value=streak_text, inline=False)
+    embed.add_field(name="Rank", value=rank or "No rank", inline=False)
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
 
 @tree.command(name="submitriddle", description="Submit a new riddle for the daily contest")
 @app_commands.describe(question="The riddle question", answer="The answer to the riddle")
@@ -1055,7 +1081,7 @@ async def on_ready():
     riddle_announcement.start()
     reveal_riddle_answer.start()
 
-    await daily_riddle_post_callback()
+
 
 if __name__ == "__main__":
     TOKEN = os.getenv("DISCORD_BOT_TOKEN")
