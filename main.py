@@ -10,6 +10,9 @@ import random
 import traceback
 from datetime import datetime, timezone, time
 from views import LeaderboardView, create_leaderboard_embed
+from db import create_db_pool, upsert_user, get_user, insert_submitted_question, get_all_submitted_questions
+
+
 
 
 
@@ -1069,6 +1072,7 @@ async def daily_riddle_post_callback():
 
 @client.event
 async def on_ready():
+    await create_db_pool()
     print(f"Bot logged in as {client.user} (ID: {client.user.id})")
     try:
         synced = await tree.sync()
@@ -1080,8 +1084,7 @@ async def on_ready():
     daily_riddle_post.start()
     riddle_announcement.start()
     reveal_riddle_answer.start()
-
-
+ 
 
 if __name__ == "__main__":
     TOKEN = os.getenv("DISCORD_BOT_TOKEN")
