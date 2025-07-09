@@ -971,12 +971,31 @@ async def reveal_riddle_answer():
     else:
         await channel.send("😢 No one guessed the riddle correctly today.")
 
-    # Reset state
+    # ✅ Streak reset for users who did not guess and are not the submitter
+    submitter_id = current_riddle.get("submitter_id")
+
+    for user_id_str in list(streaks.keys()):
+        # Skip users who got it correct
+        if user_id_str in correct_users:
+            continue
+
+        # Skip if user is today's riddle submitter
+        if submitter_id and user_id_str == str(submitter_id):
+            continue
+
+        # If the user made 0 attempts, reset their streak
+        if user_id_str not in guess_attempts:
+            streaks[user_id_str] = 0
+
+    save_all_scores()
+
+    # ✅ Reset state
     current_answer_revealed = True
     current_riddle = None
     correct_users.clear()
     guess_attempts.clear()
     deducted_for_user.clear()
+
 
 async def daily_riddle_post_callback():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
