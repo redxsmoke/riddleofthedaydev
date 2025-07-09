@@ -630,3 +630,5 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
 
     setup_test_sequence_commands(tree, client)
     """
+
+setup(tree, client)
