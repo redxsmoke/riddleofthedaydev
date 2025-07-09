@@ -1,4 +1,3 @@
-pip install asyncpg
 
 import asyncpg
 import os
