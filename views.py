@@ -86,59 +86,53 @@ class LeaderboardView(View):
         self.prev_button.disabled = False
         await self.update_message(interaction)
 
-@tree.command(name="leaderboard", description="Show the riddle leaderboard with pagination")
-async def leaderboard(interaction: Interaction):
-    await interaction.response.defer()
+async def create_leaderboard_embed():
+    load_all_data()  # Reload latest data from disk
 
-    # Filter users with score or streak >= 1
-    filtered_users = [user_id for user_id in scores.keys() if (scores.get(user_id, 0) >= 1 or streaks.get(user_id, 0) >= 1)]
+    # Top scores sorted descending
+    top_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:10]
+    max_score = top_scores[0][1] if top_scores else 0
 
-    if not filtered_users:
-        await interaction.followup.send("No leaderboard data available.", ephemeral=True)
-        return
-
-    # Sort users descending by (score, streak)
-    filtered_users.sort(key=lambda u: (scores.get(u, 0), streaks.get(u, 0)), reverse=True)
-
-    view = LeaderboardView(client, filtered_users, per_page=10)
-    # Initial send
-    start = 0
-    end = 10
-    initial_users = filtered_users[start:end]
-
-    embed = Embed(
-        title=f"🏆 Riddle Leaderboard (Page 1 / {(len(filtered_users) - 1) // 10 + 1})",
-        color=discord.Color.gold()
+    leaderboard_embed = discord.Embed(
+        title="🏆 Riddle of the Day Leaderboard",
+        color=discord.Color.purple()
     )
 
     description_lines = []
-    max_score = max((scores.get(u, 0) for u in filtered_users), default=0)
 
-    for idx, user_id_str in enumerate(initial_users, start=1):
+    for idx, (user_id, score_val) in enumerate(top_scores, start=1):
         try:
-            user = await client.fetch_user(int(user_id_str))
-            score_val = scores.get(user_id_str, 0)
-            streak_val = streaks.get(user_id_str, 0)
+            user = await client.fetch_user(int(user_id))
+            streak_val = streaks.get(user_id, 0)
 
-            score_line = f"{score_val}"
+            # Score line
+            score_line = f"    • Score: {score_val}"
             if score_val == max_score and max_score > 0:
-                score_line += " - 👑 🍣 Master Sushi Chef"
+                score_line += " — 👑 🍣 Master Sushi Chef"
 
+            # Rank line
             rank = get_rank(score_val)
-            streak_rank = get_streak_rank(streak_val)
-            streak_text = f"🔥{streak_val}"
-            if streak_rank:
-                streak_text += f" - {streak_rank}"
+            rank_line = f"    • Rank: {rank}"
 
+            # Streak line
+            streak_title = get_streak_rank(streak_val)
+            streak_line = f"    • Streak: 🔥{streak_val}"
+            if streak_title:
+                streak_line += f" — {streak_title}"
+
+            # Combine
             description_lines.append(f"#{idx} {user.display_name}:")
-            description_lines.append(f"    • Score: {score_line}")
-            description_lines.append(f"    • Rank: {rank}")
-            description_lines.append(f"    • Streak: {streak_text}")
-            description_lines.append("")
+            description_lines.append(score_line)
+            description_lines.append(rank_line)
+            description_lines.append(streak_line)
+            description_lines.append("")  # Blank line between entries
         except Exception:
-            description_lines.append(f"#{idx} <@{user_id_str}> (failed to fetch user)")
+            description_lines.append(f"#{idx} <@{user_id}> (User data unavailable)")
             description_lines.append("")
 
-    embed.description = "\n".join(description_lines) or "No users to display."
+    leaderboard_embed.description = "\n".join(description_lines)
+    leaderboard_embed.set_footer(text="Ranks update automatically based on your progress.")
 
-    await interaction.followup.send(embed=embed, view=view)
+    return leaderboard_embed
+
+
