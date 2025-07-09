@@ -4,8 +4,13 @@ from discord.ui import View, Button
 import os
 import asyncio
 
+# You need to create your client first
+intents = discord.Intents.default()
+client = discord.Client(intents=intents)
+tree = app_commands.CommandTree(client)
+
 # Assume you have imported your DB helper functions somewhere:
-# from db import get_user, upsert_user, insert_submitted_question
+# from db import get_user, upsert_user, insert_submitted_question, db_pool
 
 # Utility functions for ranks (unchanged)
 def get_rank(score):
@@ -34,7 +39,10 @@ def get_streak_rank(streak):
     else:
         return None
 
-tree = app_commands.CommandTree(client)
+# -------------------
+# Your commands below
+# -------------------
+
 @tree.command(name="myranks", description="Show your riddle score, streak, and rank")
 async def myranks(interaction: discord.Interaction):
     uid = interaction.user.id
