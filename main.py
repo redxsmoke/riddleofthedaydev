@@ -23,8 +23,13 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-from commands import setup  # import after client & tree defined
+from commands import setup, set_db_pool  
+
  
+db_pool = await create_db_pool()
+set_db_pool(db_pool)
+setup(tree, client)
+
 
 
 

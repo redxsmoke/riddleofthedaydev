@@ -4,6 +4,19 @@ from discord.ui import View, Button
 import os
 import asyncio
 
+
+db_pool = None
+
+def set_db_pool(pool):
+    global db_pool
+    db_pool = pool
+
+# Now your commands can use db_pool
+@tree.command(...)
+async def listriddles(interaction: discord.Interaction):
+    async with db_pool.acquire() as conn:
+        # your query logic
+
 # You need to create your client first
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
