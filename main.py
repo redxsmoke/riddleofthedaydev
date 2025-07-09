@@ -13,7 +13,7 @@ from datetime import datetime, timezone, time
 from views import LeaderboardView, create_leaderboard_embed
 from db import create_db_pool, upsert_user, get_user, insert_submitted_question, get_all_submitted_questions
 
-from commands import setup_commands
+ 
 
 
 
