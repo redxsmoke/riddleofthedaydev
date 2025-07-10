@@ -73,3 +73,14 @@ async def get_all_streak_users():
     async with db_pool.acquire() as conn:
         rows = await conn.fetch("SELECT user_id FROM users WHERE streak > 0 OR score > 0")
         return [str(row["user_id"]) for row in rows]
+
+async def adjust_score_and_reset_streak(user_id: str, score_delta: int):
+    async with db_pool.acquire() as conn:
+        await conn.execute("""
+            UPDATE users
+            SET 
+                score = GREATEST(score + $1, 0),
+                streak = 0
+            WHERE user_id = $2
+        """, score_delta, int(user_id))
+
