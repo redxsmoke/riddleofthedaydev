@@ -529,7 +529,7 @@ async def on_message(message):
 
         embed = discord.Embed(
             title="🎉 You guessed it!",
-            description=f"🥳 Contrats {message.author.mention} you guessed right!, your total score is now **{score}**!",
+            description=f"🥳 Contrats {message.author.mention} you guessed right! Your total score is now **{score}**!",
             color=discord.Color.green()
         )
         await message.channel.send(embed=embed)
