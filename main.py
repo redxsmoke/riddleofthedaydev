@@ -264,6 +264,8 @@ async def daily_riddle_post():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
     try:
         print("DEBUG: daily_riddle_post started")
+        print(f"[LOOP DEBUG] db module id: {id(db)} at {getattr(db, '__file__', 'unknown file')}")
+        print(f"[LOOP DEBUG] db.db_pool id: {id(db.db_pool)} (None={db.db_pool is None})")
 
         if current_riddle is not None:
             print("DEBUG: Skipping because current_riddle already active")
@@ -325,9 +327,6 @@ async def daily_riddle_post():
 
     except Exception as e:
         print(f"ERROR in daily_riddle_post loop: {e}")
-
-
-
 
 
 @tasks.loop(seconds=45)  # Runs at 23:00 UTC daily
@@ -487,9 +486,10 @@ async def run_bot():
         print("⏳ Connecting to the database...")
         pool = await db.create_db_pool()
         db.db_pool = pool
-        print(f"[DEBUG] db.db_pool set: {db.db_pool}")
+        print(f"[STARTUP DEBUG] db module id: {id(db)} at {getattr(db, '__file__', 'unknown file')}")
+        print(f"[STARTUP DEBUG] db.db_pool id: {id(db.db_pool)} (None={db.db_pool is None})")
         if db.db_pool is None:
-            raise RuntimeError("db_pool is still None after create_db_pool()!") 
+            raise RuntimeError("db_pool is still None after create_db_pool()!")
         commands.set_db_pool(pool)
         print("✅ Database connection pool created successfully.")
     except Exception as e:
@@ -501,6 +501,5 @@ async def run_bot():
 
 # Force run, even when __name__ != "__main__"
 asyncio.run(run_bot())
-
 
 
