@@ -256,52 +256,71 @@ async def riddle_announcement():
 
 @tasks.loop(seconds=30)  # Posts every day at noon UTC
 async def daily_riddle_post():
-    global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
+    try:
+        print("DEBUG: daily_riddle_post started")
+        global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
-    if current_riddle is not None:
-        # There is already an active riddle; skip
-        return
+        if current_riddle is not None:
+            print("DEBUG: Skipping because current_riddle already active")
+            return
 
-    channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
-    channel = client.get_channel(channel_id)
-    if not channel:
-        print("Daily riddle post skipped: Channel not found.")
-        return
+        channel_id_str = os.getenv("DISCORD_CHANNEL_ID")
+        if not channel_id_str:
+            print("ERROR: DISCORD_CHANNEL_ID env var not set or empty.")
+            return
+        try:
+            channel_id = int(channel_id_str)
+        except Exception as e:
+            print(f"ERROR: Failed to convert DISCORD_CHANNEL_ID to int: {e}")
+            return
 
-    # Make sure this function is async and defined somewhere to fetch from DB
-    riddles = await get_unused_questions()
-    if not riddles:
-        print("No riddles available to post.")
-        return
+        channel = client.get_channel(channel_id)
+        print(f"DEBUG: Fetched channel object: {channel} (ID: {channel_id})")
+        if not channel:
+            print("ERROR: Daily riddle post skipped: Channel not found or not cached.")
+            return
 
-    riddle = random.choice(riddles)
-    current_riddle = riddle
-    current_answer_revealed = False
-    correct_users = set()
-    guess_attempts = {}
-    deducted_for_user = set()
+        riddles = await get_unused_questions()
+        print(f"DEBUG: Retrieved {len(riddles)} unused riddles from DB")
+        if not riddles:
+            print("WARN: No riddles available to post.")
+            return
 
-    submitter_name = "Anonymous"
-    if riddle.get("submitter_id"):
-        user = client.get_user(int(riddle["submitter_id"]))
-        if user:
-            submitter_name = user.display_name
+        riddle = random.choice(riddles)
+        print(f"DEBUG: Selected riddle ID {riddle['id']} for posting")
+        current_riddle = riddle
+        current_answer_revealed = False
+        correct_users = set()
+        guess_attempts = {}
+        deducted_for_user = set()
+        submitter_name = "Anonymous"
+        if riddle.get("submitter_id"):
+            user = client.get_user(int(riddle["submitter_id"]))
+            if user:
+                submitter_name = user.display_name
+            print(f"DEBUG: Riddle submitted by user ID {riddle['submitter_id']} ({submitter_name})")
+        else:
+            print("DEBUG: Riddle has no submitter_id")
 
-    embed = discord.Embed(
-        title=f"🧩 Riddle of the Day #{riddle['id']}",
-        description=f"**Riddle:** {riddle['question']}\n\n_(Riddle submitted by {submitter_name})_",
-        color=discord.Color.blurple()
-    )
-    await channel.send(embed=embed)
-
-    # Mark this riddle as posted so it is not reused
-    async with db_pool.acquire() as conn:
-        await conn.execute(
-            "UPDATE user_submitted_questions SET posted_at = NOW() WHERE id = $1",
-            riddle["id"]
+        embed = discord.Embed(
+            title=f"🧩 Riddle of the Day #{riddle['id']}",
+            description=f"**Riddle:** {riddle['question']}\n\n_(Riddle submitted by {submitter_name})_",
+            color=discord.Color.blurple()
         )
+        await channel.send(embed=embed)
+        print(f"INFO: Posted daily riddle #{riddle['id']} to channel {channel.name} ({channel_id})")
 
-    print(f"Posted daily riddle #{riddle['id']}")
+        # Mark this riddle as posted so it is not reused
+        async with db_pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE user_submitted_questions SET posted_at = NOW() WHERE id = $1",
+                riddle["id"]
+            )
+        print(f"DEBUG: Marked riddle #{riddle['id']} as posted in DB")
+
+    except Exception as e:
+        print(f"ERROR in daily_riddle_post loop: {e}")
+
 
 
 @tasks.loop(seconds=45)  # Runs at 23:00 UTC daily
