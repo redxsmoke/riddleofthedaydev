@@ -259,9 +259,13 @@ async def riddle_announcement():
     await channel.send(embed=embed)
 
 
-@tasks.loop(seconds=30)  # Posts every day at noon UTC
+@tasks.loop(seconds=30)
 async def daily_riddle_post():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
+
+    print(f"[LOOP ENTRY] id(db): {id(db)} at {db.__file__ if hasattr(db, '__file__') else 'unknown'}")
+    print(f"[LOOP ENTRY] db.db_pool: {db.db_pool} (type={type(db.db_pool)})")
+
     try:
         print("DEBUG: daily_riddle_post started")
         print(f"[LOOP DEBUG] db module id: {id(db)} at {getattr(db, '__file__', 'unknown file')}")
