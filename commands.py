@@ -501,15 +501,7 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         deleted = await channel.purge(limit=None, check=is_not_pinned)
         await interaction.followup.send(f"🧹 Purged {len(deleted)} messages.", ephemeral=True)
         print(f"[purge] Purged {len(deleted)} messages")
-
-
-
-
-from discord import app_commands, Interaction
-import random
-import os
-from your_main_file import current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
-from your_main_file import get_unused_questions, format_question_embed, client  # import as needed
+ 
 
 @tree.command(name="testriddle", description="Post a random riddle once for testing")
 async def test_riddle(interaction: Interaction):
@@ -547,12 +539,6 @@ async def test_riddle(interaction: Interaction):
 
     await channel.send(embed=embed)
     await interaction.followup.send(f"✅ Riddle #{riddle['riddle_id']} posted in {channel.mention}.", ephemeral=True)
-
-
-
-
-
-
 
 
 
