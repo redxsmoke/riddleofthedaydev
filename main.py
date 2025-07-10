@@ -13,8 +13,10 @@ from datetime import datetime, timezone, time, timedelta
 from views import LeaderboardView, create_leaderboard_embed
 from db import create_db_pool, upsert_user, get_user, insert_submitted_question, get_all_submitted_questions
 import asyncio
-from commands import setup, set_db_pool  # make sure setup is exported
+
 import asyncpg
+import db
+from commands import setup, set_db_pool  # make sure setup is exported
 
 # Only one intents declaration (fixed duplicate)
 intents = discord.Intents.default()
