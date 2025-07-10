@@ -155,7 +155,7 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         except Exception as e:
             print(f"[myranks] ERROR sending embed: {e}")
 
-
+ 
     @tree.command(name="submitriddle", description="Submit a new riddle for the daily contest")
     @app_commands.describe(question="The riddle question", answer="The answer to the riddle")
     async def submitriddle(interaction: discord.Interaction, question: str, answer: str):
@@ -175,10 +175,22 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
 
         uid = interaction.user.id
         print(f"[submitriddle] Ensuring user {uid} exists in DB")
-        await ensure_user_exists(uid)
+
+        # Create DB pool dynamically inside command
+        db_url = os.getenv("DATABASE_URL")
+        pool = await asyncpg.create_pool(dsn=db_url)
 
         try:
-            async with db_pool.acquire() as conn:
+            # Assuming ensure_user_exists uses db_pool internally,
+            # replace it here with a direct DB call:
+            async with pool.acquire() as conn:
+                # Insert user if not exists
+                await conn.execute("""
+                    INSERT INTO users (user_id, score, streak, created_at)
+                    VALUES ($1, 0, 0, NOW())
+                    ON CONFLICT (user_id) DO NOTHING
+                """, uid)
+
                 existing = await conn.fetchrow(
                     "SELECT * FROM user_submitted_questions WHERE LOWER(TRIM(question)) = LOWER(TRIM($1))",
                     question
@@ -187,6 +199,7 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         except Exception as e:
             print(f"[submitriddle] ERROR checking for duplicate question: {e}")
             await interaction.followup.send("❌ Database error during duplicate check.", ephemeral=True)
+            await pool.close()
             return
 
         if existing:
@@ -195,22 +208,38 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
                 "❌ This riddle has already been submitted. Please try a different one.",
                 ephemeral=True
             )
+            await pool.close()
             return
 
         try:
-            await insert_submitted_question(user_id=uid, question=question, answer=answer)
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    """
+                    INSERT INTO user_submitted_questions (user_id, question, answer, created_at)
+                    VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+                    """,
+                    uid, question, answer
+                )
             print("[submitriddle] Inserted submitted question")
         except Exception as e:
             print(f"[submitriddle] ERROR inserting submitted question: {e}")
             await interaction.followup.send("❌ Failed to submit your riddle.", ephemeral=True)
+            await pool.close()
             return
 
         try:
-            await update_user_score_and_streak(uid, add_score=1)
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    """
+                    UPDATE users SET score = score + 1 WHERE user_id = $1
+                    """, uid
+                )
             print("[submitriddle] Updated user score by 1")
         except Exception as e:
             print(f"[submitriddle] ERROR updating user score: {e}")
             # Not critical enough to block response, continue anyway
+
+        await pool.close()
 
         # Optional: Notify mod user
         notify_user_id = os.getenv("NOTIFY_USER_ID")
@@ -236,6 +265,7 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             print("[submitriddle] DM confirmation sent to submitter")
         except Exception:
             print("[submitriddle] Failed to send DM confirmation to submitter")
+
 
     
 
