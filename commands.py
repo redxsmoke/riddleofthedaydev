@@ -3,6 +3,7 @@ from discord import app_commands, Embed, Interaction
 from discord.ui import View, Button
 import os
 import asyncio
+import traceback 
 
 
 db_pool = None
@@ -73,7 +74,6 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
                 print(f"[ensure_user_exists] ERROR inserting user {user_id}: {e}")
 
 
-
     @tree.command(name="myranks", description="Show your riddle score, streak, and rank")
     async def myranks(interaction: discord.Interaction):
         print("[myranks] Command invoked")
@@ -97,8 +97,10 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             print(f"[myranks] DB query result: {row}")
         except Exception as e:
             print(f"[myranks] ERROR querying DB: {e}")
+            traceback.print_exc()
             await interaction.followup.send("❌ Database query failed.", ephemeral=True)
             return
+
 
         score_val = row["score"] if row else 0
         streak_val = row["streak"] if row else 0
