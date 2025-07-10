@@ -4,7 +4,7 @@ from discord.ui import View, Button
 import os
 import asyncio
 import traceback 
-
+from db import get_user
 
 db_pool = None
 
@@ -63,7 +63,7 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             try:
                 await conn.execute(
                     """
-                    INSERT INTO users (user_id, score, streak)
+                    INSERT INTO users (user_id, score, streak, created_at)
                     VALUES ($1, 0, 0)
                     ON CONFLICT (user_id) DO NOTHING
                     """,
