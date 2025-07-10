@@ -1,25 +1,39 @@
 from discord import app_commands, Interaction, Embed
 from discord.ui import View, Button
 import discord
+import db  # your DB helper module with async functions to get scores, streaks, riddles, etc.
 
-# You should have your scores and streaks dicts somewhere accessible
-# Example:
-# scores = {"user_id_str": score_int, ...}
-# streaks = {"user_id_str": streak_int, ...}
+# Removed JSON dicts: scores, streaks
 
-def get_combined_sort_key(user_id):
-    return (scores.get(user_id, 0), streaks.get(user_id, 0))
+# Helper async functions to fetch data from DB instead of JSON dicts
+
+async def get_score(user_id: str) -> int:
+    return await db.get_score(user_id) or 0
+
+async def get_streak(user_id: str) -> int:
+    return await db.get_streak(user_id) or 0
+
+async def get_rank(score):
+    # You may want to make this async if needed, or pass in pre-fetched max_score/streak
+    if score >= 50:
+        return "Sushi Einstein 🧪"
+    # Add your rank logic as needed
+
+async def get_streak_rank(streak):
+    # Stub or fill in your streak rank logic async if needed
+    if streak >= 30:
+        return "💚🔥 Wasabi Warlord (30+ day streak)"
+    return None
+
 
 class LeaderboardView(View):
     def __init__(self, client, users, per_page=10):
-        super().__init__(timeout=120)  # 2 minutes timeout
+        super().__init__(timeout=120)
         self.client = client
-        self.users = users  # list of user_id strings sorted
+        self.users = users  # list of user_id strings
         self.per_page = per_page
         self.current_page = 0
         self.max_page = (len(users) - 1) // per_page
-
-        # Disable Prev on first page
         self.prev_button.disabled = True
         if self.max_page == 0:
             self.next_button.disabled = True
@@ -34,21 +48,27 @@ class LeaderboardView(View):
             color=discord.Color.gold()
         )
 
-        description_lines = []
-        max_score = max((scores.get(u, 0) for u in self.users), default=0)
+        # Fetch all scores asynchronously for the users on this page
+        scores_streaks = {}
+        for uid in page_users:
+            score = await get_score(uid)
+            streak = await get_streak(uid)
+            scores_streaks[uid] = (score, streak)
 
+        max_score = max((score for score, _ in scores_streaks.values()), default=0)
+
+        description_lines = []
         for idx, user_id_str in enumerate(page_users, start=start + 1):
             try:
                 user = await self.client.fetch_user(int(user_id_str))
-                score_val = scores.get(user_id_str, 0)
-                streak_val = streaks.get(user_id_str, 0)
+                score_val, streak_val = scores_streaks.get(user_id_str, (0, 0))
 
                 score_line = f"{score_val}"
                 if score_val == max_score and max_score > 0:
                     score_line += " - 👑 🍣 Master Sushi Chef"
 
-                rank = get_rank(score_val)
-                streak_rank = get_streak_rank(streak_val)
+                rank = await get_rank(score_val)
+                streak_rank = await get_streak_rank(streak_val)
                 streak_text = f"🔥{streak_val}"
                 if streak_rank:
                     streak_text += f" - {streak_rank}"
@@ -70,8 +90,6 @@ class LeaderboardView(View):
     async def prev_button(self, interaction: Interaction, button: Button):
         if self.current_page > 0:
             self.current_page -= 1
-
-        # Enable/disable buttons accordingly
         button.disabled = self.current_page == 0
         self.next_button.disabled = False
         await self.update_message(interaction)
@@ -80,18 +98,16 @@ class LeaderboardView(View):
     async def next_button(self, interaction: Interaction, button: Button):
         if self.current_page < self.max_page:
             self.current_page += 1
-
-        # Enable/disable buttons accordingly
         button.disabled = self.current_page == self.max_page
         self.prev_button.disabled = False
         await self.update_message(interaction)
 
-async def create_leaderboard_embed():
-    load_all_data()  # Reload latest data from disk
 
-    # Top scores sorted descending
-    top_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:10]
-    max_score = top_scores[0][1] if top_scores else 0
+async def create_leaderboard_embed(client):
+    # Get top scores & streaks from DB (assuming you have a DB function for top users)
+    top_scores_data = await db.get_top_scores(limit=10)  # returns list of tuples (user_id:str, score:int, streak:int)
+
+    max_score = max((score for _, score, _ in top_scores_data), default=0)
 
     leaderboard_embed = discord.Embed(
         title="🏆 Riddle of the Day Leaderboard",
@@ -100,32 +116,25 @@ async def create_leaderboard_embed():
 
     description_lines = []
 
-    for idx, (user_id, score_val) in enumerate(top_scores, start=1):
+    for idx, (user_id, score_val, streak_val) in enumerate(top_scores_data, start=1):
         try:
             user = await client.fetch_user(int(user_id))
-            streak_val = streaks.get(user_id, 0)
 
-            # Score line
             score_line = f"    • Score: {score_val}"
             if score_val == max_score and max_score > 0:
                 score_line += " — 👑 🍣 Master Sushi Chef"
 
-            # Rank line
-            rank = get_rank(score_val)
-            rank_line = f"    • Rank: {rank}"
-
-            # Streak line
-            streak_title = get_streak_rank(streak_val)
+            rank = await get_rank(score_val)
+            streak_title = await get_streak_rank(streak_val)
             streak_line = f"    • Streak: 🔥{streak_val}"
             if streak_title:
                 streak_line += f" — {streak_title}"
 
-            # Combine
             description_lines.append(f"#{idx} {user.display_name}:")
             description_lines.append(score_line)
-            description_lines.append(rank_line)
+            description_lines.append(f"    • Rank: {rank}")
             description_lines.append(streak_line)
-            description_lines.append("")  # Blank line between entries
+            description_lines.append("")
         except Exception:
             description_lines.append(f"#{idx} <@{user_id}> (User data unavailable)")
             description_lines.append("")
@@ -139,7 +148,7 @@ async def create_leaderboard_embed():
 class ListRiddlesView(View):
     def __init__(self, riddles, user_id, client, per_page=5):
         super().__init__(timeout=300)
-        self.riddles = riddles
+        self.riddles = riddles  # list of riddles dicts
         self.user_id = user_id
         self.client = client
         self.per_page = per_page
@@ -192,7 +201,7 @@ class ListRiddlesView(View):
         )
 
         for riddle in page_riddles:
-            submitter = self.client.get_user(riddle["user_id"])
+            submitter = self.client.get_user(int(riddle["user_id"]))
             submitter_name = submitter.display_name if submitter else f"User ID {riddle['user_id']}"
             embed.add_field(
                 name=f"🧩 Riddle #{riddle['riddle_id']}",
