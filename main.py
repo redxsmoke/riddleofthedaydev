@@ -512,22 +512,26 @@ async def on_message(message):
     answer_words = clean_and_filter(current_riddle["answer"])
 
     if any(word in user_words for word in answer_words):
-        try: await message.delete()
-        except: pass
+        try:
+            await message.delete()
+        except:
+            pass
 
         await db.increment_score(user_id)
         await db.increment_streak(user_id)
         score = await db.get_score(user_id)
 
-        correct_users.add(user_id)
-
+        # ✅ Moved this line AFTER the embed is sent
         embed = discord.Embed(
             title="🎉 You guessed it!",
             description=f"🥳 Nice job {message.author.mention}, your total score is now **{score}**!",
             color=discord.Color.green()
         )
         await message.channel.send(embed=embed)
+
+        correct_users.add(user_id)  # 👈 Moved here
         return
+
 
     # Incorrect guess logic
     remaining = 5 - attempts
