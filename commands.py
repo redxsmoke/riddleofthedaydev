@@ -19,7 +19,10 @@ tree = app_commands.CommandTree(client)
 
 
 # Ensure user exists helper
+ 
 async def ensure_user_exists(user_id: int):
+    if db_pool is None:
+        raise RuntimeError("DB pool not initialized!")
     async with db_pool.acquire() as conn:
         exists = await conn.fetchval("SELECT 1 FROM users WHERE user_id=$1", user_id)
         if not exists:
@@ -27,16 +30,35 @@ async def ensure_user_exists(user_id: int):
                 "INSERT INTO users (user_id, score, streak) VALUES ($1, 0, 0)", user_id
             )
 
+
+import functools
+
 # Decorator to auto-register user before command runs
 def auto_register_user(func):
+    @functools.wraps(func)
     async def wrapper(interaction: discord.Interaction, *args, **kwargs):
-        await ensure_user_exists(interaction.user.id)
+        try:
+            await ensure_user_exists(interaction.user.id)
+        except Exception as e:
+            print(f"[auto_register_user] Failed to ensure user exists: {e}")
+            # Send ephemeral error message to user
+            try:
+                await interaction.response.send_message(
+                    "Internal error: failed to register user in database.", ephemeral=True
+                )
+            except Exception:
+                # If response already sent or failed, fallback to followup
+                await interaction.followup.send(
+                    "Internal error: failed to register user in database.", ephemeral=True
+                )
+            return
         return await func(interaction, *args, **kwargs)
     return wrapper
 
 
-# A top-level helper function for updating score and streak
 async def update_user_score_and_streak(user_id: int, add_score=0, add_streak=0):
+    if db_pool is None:
+        raise RuntimeError("DB pool not initialized!")
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow("SELECT score, streak FROM users WHERE user_id=$1", user_id)
         if row:
