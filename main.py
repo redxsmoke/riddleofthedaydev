@@ -122,12 +122,11 @@ async def on_message(message):
     if not current_riddle or current_answer_revealed:
         return
 
-    # Prevent riddle submitter from answering their own riddle
     if current_riddle.get("user_id") == user_id:
-        user_answer = content.lower().strip()
-        correct_answer = current_riddle["answer"].lower().strip()
+        user_words = clean_and_filter(content)
+        answer_words = clean_and_filter(current_riddle["answer"])
 
-        if user_answer == correct_answer or user_answer in correct_answer:
+        if any(word in answer_words for word in user_words):
             try:
                 await message.delete()
             except:
@@ -140,25 +139,19 @@ async def on_message(message):
         else:
             return
 
-    # Prevent users from guessing more after correct answer
     if user_id in correct_users:
-        try:
-            await message.delete()
-        except:
-            pass
+        try: await message.delete()
+        except: pass
         await message.channel.send(
             f"✅ You already answered correctly, {message.author.mention}. No more guesses counted.",
             delete_after=5
         )
         return
 
-    # Track guesses count per user
     attempts = guess_attempts.get(user_id, 0)
     if attempts >= 5:
-        try:
-            await message.delete()
-        except:
-            pass
+        try: await message.delete()
+        except: pass
         await message.channel.send(
             f"❌ You are out of guesses for this riddle. Your score has decreased by 1 and your streak has been reset to 0, {message.author.mention}.",
             delete_after=5
@@ -170,13 +163,11 @@ async def on_message(message):
     user_words = clean_and_filter(content)
     answer_words = clean_and_filter(current_riddle["answer"])
 
-    # Check if any user word is in the answer words for guess correctness
-    if any(word in answer_words for word in user_words):
+    if any(word in user_words for word in answer_words):
         correct_users.add(user_id)
-
-        # Update DB scores/streaks
         await db.increment_score(user_id)
         await db.increment_streak(user_id)
+
         new_score = await db.get_score(user_id)
 
         try:
@@ -185,35 +176,30 @@ async def on_message(message):
             pass
 
         correct_guess_embed = discord.Embed(
-            title="You guessed correctly!",
+            title="You guess correctly!",
             description=f"🥳 Correct, {message.author.mention}! Your total score: {new_score}",
             color=discord.Color.green()
         )
         await message.channel.send(embed=correct_guess_embed)
-        
-        # <--- **IMPORTANT:** Return here to stop further processing!
-        return
-
-    # This code only runs if guess was wrong
-    remaining = 5 - guess_attempts.get(user_id, 0)
-    if remaining == 0 and user_id not in deducted_for_user:
-        await db.decrement_score(user_id)
-        await db.reset_streak(user_id)
-        deducted_for_user.add(user_id)
-        await message.channel.send(
-            f"❌ Incorrect, {message.author.mention}. You've used all guesses and lost 1 point.",
-            delete_after=8
-        )
-    elif remaining > 0:
-        await message.channel.send(
-            f"❌ Incorrect, {message.author.mention}. {remaining} guess(es) left.",
-            delete_after=6
-        )
-    try:
-        await message.delete()
-    except:
-        pass
-
+    else:
+        remaining = 5 - guess_attempts.get(user_id, 0)
+        if remaining == 0 and user_id not in deducted_for_user:
+            await db.decrement_score(user_id)
+            await db.reset_streak(user_id)
+            deducted_for_user.add(user_id)
+            await message.channel.send(
+                f"❌ Incorrect, {message.author.mention}. You've used all guesses and lost 1 point.",
+                delete_after=8
+            )
+        elif remaining > 0:
+            await message.channel.send(
+                f"❌ Incorrect, {message.author.mention}. {remaining} guess(es) left.",
+                delete_after=6
+            )
+        try:
+            await message.delete()
+        except:
+            pass
 
     now_utc = datetime.now(timezone.utc)
     reveal_dt = datetime.combine(now_utc.date(), time(23, 0), tzinfo=timezone.utc)
