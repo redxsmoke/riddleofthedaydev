@@ -104,9 +104,12 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             print(f"[myranks] ERROR sending embed: {e}")
 
 
+
     @tree.command(name="submitriddle", description="Submit a new riddle for the daily contest")
     @app_commands.describe(question="The riddle question", answer="The answer to the riddle")
     async def submitriddle(interaction: discord.Interaction, question: str, answer: str):
+        print("[submitriddle] Command invoked")
+
         question = question.strip()
         answer = answer.strip().lower()
 
@@ -115,6 +118,7 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             return
 
         await interaction.response.defer(ephemeral=True)  # Defer early
+        print("[submitriddle] Deferred interaction response")
 
         # Check for duplicate question in DB (case-insensitive)
         async with db_pool.acquire() as conn:
@@ -122,6 +126,8 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
                 "SELECT * FROM user_submitted_questions WHERE LOWER(TRIM(question)) = LOWER(TRIM($1))",
                 question
             )
+        print(f"[submitriddle] Duplicate check result: {existing}")
+
         if existing:
             await interaction.followup.send(
                 "❌ This riddle has already been submitted. Please try a different one.",
@@ -131,9 +137,11 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
 
         # Insert into DB
         await insert_submitted_question(user_id=interaction.user.id, question=question, answer=answer)
+        print("[submitriddle] Inserted submitted question")
 
         # Update user score by 1
         await update_user_score_and_streak(interaction.user.id, add_score=1)
+        print("[submitriddle] Updated user score by 1")
 
         embed = Embed(
             title="🧩 Riddle Submitted!",
@@ -141,6 +149,7 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             color=discord.Color.blurple()
         )
         await interaction.followup.send(embed=embed)
+        print("[submitriddle] Embed sent")
 
         # Optional: Notify mod user
         notify_user_id = os.getenv("NOTIFY_USER_ID")
@@ -151,8 +160,9 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
                     await notify_user.send(
                         f"@{interaction.user.display_name} submitted a new riddle. Use `/listriddles` to view and `/removeriddle` to moderate."
                     )
+                print("[submitriddle] Notified mod user")
             except Exception as e:
-                print(f"Failed to send DM to notify user: {e}")
+                print(f"[submitriddle] Failed to send DM to notify user: {e}")
 
         # Optional: DM submitter confirmation
         dm_message = (
@@ -162,14 +172,17 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         )
         try:
             await interaction.user.send(dm_message)
+            print("[submitriddle] DM confirmation sent to submitter")
         except Exception:
-            pass
+            print("[submitriddle] Failed to send DM confirmation to submitter")
+
 
 
     @tree.command(name="addpoints", description="Add points to a user")
     @app_commands.describe(user="The user to add points to", amount="Number of points to add (positive integer)")
     @app_commands.checks.has_permissions(manage_guild=True)
     async def addpoints(interaction: discord.Interaction, user: discord.User, amount: int):
+        print("[addpoints] Command invoked")
         await interaction.response.defer(ephemeral=True)
 
         if amount <= 0:
@@ -177,6 +190,7 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             return
 
         new_score, _ = await update_user_score_and_streak(user.id, add_score=amount)
+        print(f"[addpoints] Added {amount} points to user {user.id}, new score: {new_score}")
 
         await interaction.followup.send(
             f"✅ Added {amount} point(s) to {user.mention}. New score: {new_score}",
@@ -184,10 +198,12 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         )
 
 
+
     @tree.command(name="addstreak", description="Add streak days to a user")
     @app_commands.describe(user="The user to add streak days to", amount="Number of streak days to add (positive integer)")
     @app_commands.checks.has_permissions(manage_guild=True)
     async def addstreak(interaction: discord.Interaction, user: discord.User, amount: int):
+        print("[addstreak] Command invoked")
         await interaction.response.defer(ephemeral=True)
 
         if amount <= 0:
@@ -195,6 +211,7 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             return
 
         _, new_streak = await update_user_score_and_streak(user.id, add_streak=amount)
+        print(f"[addstreak] Added {amount} streak days to user {user.id}, new streak: {new_streak}")
 
         await interaction.followup.send(
             f"✅ Added {amount} streak day(s) to {user.mention}. New streak: {new_streak}",
@@ -202,10 +219,12 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         )
 
 
+
     @tree.command(name="removepoints", description="Remove points from a user")
     @app_commands.describe(user="The user to remove points from", amount="Number of points to remove (positive integer)")
     @app_commands.checks.has_permissions(manage_guild=True)
     async def removepoints(interaction: discord.Interaction, user: discord.User, amount: int):
+        print("[removepoints] Command invoked")
         await interaction.response.defer(ephemeral=True)
 
         if amount <= 0:
@@ -213,6 +232,7 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             return
 
         new_score, _ = await update_user_score_and_streak(user.id, add_score=-amount)
+        print(f"[removepoints] Removed {amount} points from user {user.id}, new score: {new_score}")
 
         await interaction.followup.send(
             f"❌ Removed {amount} point(s) from {user.mention}. New score: {new_score}",
@@ -220,10 +240,12 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         )
 
 
+
     @tree.command(name="removestreak", description="Remove streak days from a user")
     @app_commands.describe(user="The user to remove streak days from", amount="Number of streak days to remove (positive integer)")
     @app_commands.checks.has_permissions(manage_guild=True)
     async def removestreak(interaction: discord.Interaction, user: discord.User, amount: int):
+        print("[removestreak] Command invoked")
         await interaction.response.defer(ephemeral=True)
 
         if amount <= 0:
@@ -231,16 +253,18 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             return
 
         _, new_streak = await update_user_score_and_streak(user.id, add_streak=-amount)
+        print(f"[removestreak] Removed {amount} streak days from user {user.id}, new streak: {new_streak}")
 
         await interaction.followup.send(
             f"❌ Removed {amount} streak day(s) from {user.mention}. New streak: {new_streak}",
             ephemeral=True
         )
 
-
     @tree.command(name="ranks", description="View all rank tiers and how to earn them")
     async def ranks(interaction: discord.Interaction):
+        print("[ranks] Command invoked")
         await interaction.response.defer(ephemeral=True)
+        print("[ranks] Deferred interaction response")
 
         embed = Embed(
             title="📊 Riddle Rank Tiers",
@@ -280,126 +304,73 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
 
         embed.set_footer(text="Ranks update automatically based on your progress.")
         await interaction.followup.send(embed=embed, ephemeral=True)
+        print("[ranks] Embed sent")
+
 
 
     @tree.command(name="removeriddle", description="Remove a riddle by its number (ID)")
     @app_commands.describe(riddle_id="The ID number of the riddle to remove")
     @app_commands.checks.has_permissions(manage_guild=True)
     async def removeriddle(interaction: discord.Interaction, riddle_id: int):
+        print(f"[removeriddle] Command invoked with riddle_id={riddle_id}")
         await interaction.response.defer(ephemeral=True)
-        # Remove riddle from DB instead of in-memory list
+
         async with db_pool.acquire() as conn:
             result = await conn.execute(
                 "DELETE FROM user_submitted_questions WHERE id = $1",
                 riddle_id
             )
+        print(f"[removeriddle] DB execute result: {result}")
+
         if result.endswith("0"):
             await interaction.followup.send(f"❌ No riddle found with ID #{riddle_id}.", ephemeral=True)
+            print(f"[removeriddle] No riddle found with ID #{riddle_id}")
         else:
             await interaction.followup.send(f"✅ Removed riddle #{riddle_id}.", ephemeral=True)
+            print(f"[removeriddle] Removed riddle #{riddle_id}")
 
-
-    ITEMS_PER_PAGE = 10
-
-    class ListRiddlesView(View):
-        def __init__(self, riddles, author_id, bot):
-            super().__init__(timeout=180)
-            self.riddles = riddles
-            self.author_id = author_id
-            self.current_page = 0
-            self.total_pages = max(1, (len(riddles) - 1) // ITEMS_PER_PAGE + 1)
-            self.bot = bot
-            self.update_buttons()
-
-        def update_buttons(self):
-            self.prev_button.disabled = self.current_page == 0
-            self.next_button.disabled = self.current_page >= self.total_pages - 1
-
-        async def get_page_embed(self):
-            start = self.current_page * ITEMS_PER_PAGE
-            end = start + ITEMS_PER_PAGE
-            page_riddles = self.riddles[start:end]
-
-            embed = Embed(
-                title=f"📜 Submitted Riddles (Page {self.current_page + 1}/{self.total_pages})",
-                color=discord.Color.blurple()
-            )
-
-            if not page_riddles:
-                embed.description = "No riddles available."
-                return embed
-
-            desc_lines = []
-            for riddle in page_riddles:
-                try:
-                    user = await self.bot.fetch_user(int(riddle['user_id'] or riddle['submitter_id']))
-                    display_name = user.display_name if hasattr(user, 'display_name') else user.name
-                except Exception:
-                    display_name = "Unknown User"
-                desc_lines.append(f"#{riddle['id']}: {riddle['question']}\n_(submitted by {display_name})_")
-
-            embed.description = "\n\n".join(desc_lines)
-            embed.set_footer(text="Use the buttons below to navigate pages.")
-            return embed
-
-        @discord.ui.button(label="Previous", style=discord.ButtonStyle.secondary)
-        async def prev_button(self, interaction: Interaction, button: Button):
-            if interaction.user.id != self.author_id:
-                await interaction.response.send_message("Only the command invoker can use these buttons.", ephemeral=True)
-                return
-            if self.current_page > 0:
-                self.current_page -= 1
-                self.update_buttons()
-                embed = await self.get_page_embed()
-                await interaction.response.edit_message(embed=embed, view=self)
-
-        @discord.ui.button(label="Next", style=discord.ButtonStyle.secondary)
-        async def next_button(self, interaction: Interaction, button: Button):
-            if interaction.user.id != self.author_id:
-                await interaction.response.send_message("Only the command invoker can use these buttons.", ephemeral=True)
-                return
-            if self.current_page < self.total_pages - 1:
-                self.current_page += 1
-                self.update_buttons()
-                embed = await self.get_page_embed()
-                await interaction.response.edit_message(embed=embed, view=self)
 
 
     @tree.command(name="listriddles", description="List all submitted riddles with pagination")
     async def listriddles(interaction: discord.Interaction):
+        print("[listriddles] Command invoked")
         await interaction.response.defer(ephemeral=True)
 
         async with db_pool.acquire() as conn:
             riddles = await conn.fetch("SELECT * FROM user_submitted_questions ORDER BY created_at DESC")
+        print(f"[listriddles] Fetched {len(riddles)} riddles")
 
         if not riddles:
             await interaction.followup.send("No riddles have been submitted yet.", ephemeral=True)
+            print("[listriddles] No riddles found")
             return
 
         view = ListRiddlesView(riddles, interaction.user.id, interaction.client)
         embed = await view.get_page_embed()
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        print("[listriddles] Sent riddles list embed")
+
 
 
     @tree.command(name="leaderboard", description="Show the riddle leaderboard with pagination")
     async def leaderboard(interaction: Interaction):
+        print("[leaderboard] Command invoked")
         await interaction.response.defer(ephemeral=True)
 
-        # Fetch users from DB with score or streak >= 1
         async with db_pool.acquire() as conn:
             rows = await conn.fetch("SELECT user_id, score, streak FROM users WHERE score >= 1 OR streak >= 1")
+        print(f"[leaderboard] Fetched {len(rows)} users")
 
         filtered_users = [row["user_id"] for row in rows]
         if not filtered_users:
             await interaction.followup.send("No leaderboard data available.", ephemeral=True)
+            print("[leaderboard] No leaderboard data available")
             return
 
-        # Sort descending by (score, streak)
         rows.sort(key=lambda r: (r["score"], r["streak"]), reverse=True)
 
         view = LeaderboardView(client, filtered_users, per_page=10)
 
-        # First page users
         initial_users = filtered_users[:10]
 
         embed = Embed(
@@ -437,109 +408,29 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
 
         embed.description = "\n".join(description_lines)
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        print("[leaderboard] Leaderboard embed sent")
 
-
-    class LeaderboardView(View):
-        def __init__(self, bot, users, per_page=10):
-            super().__init__(timeout=180)
-            self.bot = bot
-            self.users = users
-            self.per_page = per_page
-            self.current_page = 0
-            self.total_pages = max(1, (len(users) - 1) // per_page + 1)
-            self.update_buttons()
-
-        def update_buttons(self):
-            self.prev_button.disabled = self.current_page == 0
-            self.next_button.disabled = self.current_page >= self.total_pages - 1
-
-        async def get_page_embed(self):
-            start = self.current_page * self.per_page
-            end = start + self.per_page
-            page_users = self.users[start:end]
-
-            embed = Embed(
-                title=f"🏆 Riddle Leaderboard (Page {self.current_page + 1}/{self.total_pages})",
-                color=discord.Color.gold()
-            )
-
-            async with db_pool.acquire() as conn:
-                rows = await conn.fetch(
-                    "SELECT user_id, score, streak FROM users WHERE user_id = ANY($1::bigint[])",
-                    page_users
-                )
-
-            max_score = max((r["score"] for r in rows), default=0)
-
-            description_lines = []
-            for idx, user_id in enumerate(page_users, start=start + 1):
-                try:
-                    user = await self.bot.fetch_user(int(user_id))
-                    user_row = next((r for r in rows if r["user_id"] == user_id), None)
-                    score_val = user_row["score"] if user_row else 0
-                    streak_val = user_row["streak"] if user_row else 0
-
-                    score_line = f"{score_val}"
-                    if score_val == max_score and max_score > 0:
-                        score_line += " - 👑 🍣 Master Sushi Chef"
-
-                    rank = get_rank(score_val)
-                    streak_rank = get_streak_rank(streak_val)
-                    streak_text = f"🔥{streak_val}"
-                    if streak_rank:
-                        streak_text += f" - {streak_rank}"
-
-                    description_lines.append(f"#{idx} {user.display_name}:")
-                    description_lines.append(f"    • Score: {score_line}")
-                    description_lines.append(f"    • Streak: {streak_text}")
-                    description_lines.append(f"    • Rank: {rank}")
-
-                except Exception:
-                    description_lines.append(f"#{idx} Unknown User (ID: {user_id})")
-
-            embed.description = "\n".join(description_lines)
-            return embed
-
-        @discord.ui.button(label="Previous", style=discord.ButtonStyle.secondary)
-        async def prev_button(self, interaction: Interaction, button: Button):
-            if interaction.user.id != interaction.message.interaction.user.id:
-                await interaction.response.send_message("Only the command invoker can use these buttons.", ephemeral=True)
-                return
-
-            if self.current_page > 0:
-                self.current_page -= 1
-                self.update_buttons()
-                embed = await self.get_page_embed()
-                await interaction.response.edit_message(embed=embed, view=self)
-
-        @discord.ui.button(label="Next", style=discord.ButtonStyle.secondary)
-        async def next_button(self, interaction: Interaction, button: Button):
-            if interaction.user.id != interaction.message.interaction.user.id:
-                await interaction.response.send_message("Only the command invoker can use these buttons.", ephemeral=True)
-                return
-
-            if self.current_page < self.total_pages - 1:
-                self.current_page += 1
-                self.update_buttons()
-                embed = await self.get_page_embed()
-                await interaction.response.edit_message(embed=embed, view=self)
 
 
     @tree.command(name="purge", description="Delete all messages in this channel")
     @app_commands.checks.has_permissions(administrator=True)
     async def purge(interaction: discord.Interaction):
+        print("[purge] Command invoked")
         channel = interaction.channel
         if not isinstance(channel, discord.TextChannel):
             await interaction.response.send_message("❌ This command can only be used in text channels.", ephemeral=True)
+            print("[purge] Command used outside text channel")
             return
 
         await interaction.response.defer(ephemeral=True)
+        print("[purge] Deferred interaction response")
 
         def is_not_pinned(m):
             return not m.pinned
 
         deleted = await channel.purge(limit=None, check=is_not_pinned)
         await interaction.followup.send(f"🧹 Purged {len(deleted)} messages.", ephemeral=True)
+        print(f"[purge] Purged {len(deleted)} messages")
 
 
 
