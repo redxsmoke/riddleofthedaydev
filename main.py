@@ -1,5 +1,3 @@
-print("🚀 Bot main.py starting up...")
-
 import discord
 from discord import app_commands
 from discord.ext import tasks
@@ -15,7 +13,7 @@ from datetime import datetime, timezone, time, timedelta
 from views import LeaderboardView, create_leaderboard_embed
 from db import create_db_pool, upsert_user, get_user, insert_submitted_question, get_all_submitted_questions
 import asyncio
-from commands import set_db_pool, setup   
+from commands import setup, set_db_pool  # make sure setup is exported
 import asyncpg
 
 intents = discord.Intents.default()
@@ -555,7 +553,6 @@ if __name__ == "__main__":
     async def startup():
         pool = await asyncpg.create_pool(DB_URL)
         set_db_pool(pool)
-        setup(tree, client)
         await client.start(TOKEN)
 
     asyncio.run(startup())
