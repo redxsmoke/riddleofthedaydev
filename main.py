@@ -489,10 +489,18 @@ async def daily_riddle_post_callback():
 @client.event
 async def on_ready():
     print(f"Logged in as {client.user} (ID: {client.user.id})")
-    # Start any background tasks here
+    
+    commands.setup(tree, client)   # setup commands after login
+    try:
+        synced = await tree.sync()  # sync commands after client ready
+        print(f"Synced {len(synced)} commands.")
+    except Exception as e:
+        print(f"Failed to sync commands: {e}")
+
     riddle_announcement.start()
     daily_riddle_post.start()
     reveal_riddle_answer.start()
+
 
 async def startup():
     TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -508,10 +516,6 @@ async def startup():
         commands.set_db_pool(pool)
         print("✅ Database connection pool created successfully.")
 
-        # Setup commands and sync once here
-        commands.setup(tree, client)
-        synced = await tree.sync()
-        print(f"Synced {len(synced)} commands.")
 
     except Exception as e:
         print(f"❌ Failed to connect to the database or sync commands: {e}")
