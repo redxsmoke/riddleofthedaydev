@@ -17,8 +17,6 @@ intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-# Assume you have imported your DB helper functions somewhere:
-# from db import get_user, upsert_user, insert_submitted_question, db_pool
 
 # Utility functions for ranks (unchanged)
 def get_rank(score):
@@ -54,6 +52,28 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
     # All command definitions go below inside setup()
 
 
+    # Helper function to ensure user exists in DB
+    async def ensure_user_exists(user_id: int):
+        if db_pool is None:
+            print("[ensure_user_exists] ERROR: db_pool is None")
+            return
+        async with db_pool.acquire() as conn:
+            # Try insert, ignore if already exists
+            try:
+                await conn.execute(
+                    """
+                    INSERT INTO users (user_id, score, streak)
+                    VALUES ($1, 0, 0)
+                    ON CONFLICT (user_id) DO NOTHING
+                    """,
+                    user_id
+                )
+                print(f"[ensure_user_exists] Ensured user {user_id} exists")
+            except Exception as e:
+                print(f"[ensure_user_exists] ERROR inserting user {user_id}: {e}")
+
+
+
     @tree.command(name="myranks", description="Show your riddle score, streak, and rank")
     async def myranks(interaction: discord.Interaction):
         print("[myranks] Command invoked")
@@ -67,6 +87,9 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         print("[myranks] Deferred interaction response")
 
         uid = interaction.user.id
+        print(f"[myranks] Ensuring user {uid} exists in DB")
+        await ensure_user_exists(uid)
+
         print(f"[myranks] Fetching user with id: {uid}")
 
         try:
@@ -104,7 +127,6 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             print(f"[myranks] ERROR sending embed: {e}")
 
 
-
     @tree.command(name="submitriddle", description="Submit a new riddle for the daily contest")
     @app_commands.describe(question="The riddle question", answer="The answer to the riddle")
     async def submitriddle(interaction: discord.Interaction, question: str, answer: str):
@@ -120,7 +142,10 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         await interaction.response.defer(ephemeral=True)  # Defer early
         print("[submitriddle] Deferred interaction response")
 
-        # Check for duplicate question in DB (case-insensitive)
+        uid = interaction.user.id
+        print(f"[submitted riddle] Ensuring user {uid} exists in DB")
+        await ensure_user_exists(uid)
+
         async with db_pool.acquire() as conn:
             existing = await conn.fetchrow(
                 "SELECT * FROM user_submitted_questions WHERE LOWER(TRIM(question)) = LOWER(TRIM($1))",
@@ -357,6 +382,10 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         print("[leaderboard] Command invoked")
         await interaction.response.defer(ephemeral=True)
 
+        uid = interaction.user.id
+        print(f"[submitted riddle] Ensuring user {uid} exists in DB")
+        await ensure_user_exists(uid)
+
         async with db_pool.acquire() as conn:
             rows = await conn.fetch("SELECT user_id, score, streak FROM users WHERE score >= 1 OR streak >= 1")
         print(f"[leaderboard] Fetched {len(rows)} users")
@@ -454,6 +483,16 @@ async def update_user_score_and_streak(user_id: int, add_score=0, add_streak=0):
             )
     return new_score, new_streak
 
+async def ensure_user_exists(user_id: int):
+    async with db_pool.acquire() as conn:
+        # Check if user exists
+        row = await conn.fetchrow("SELECT user_id FROM users WHERE user_id = $1", user_id)
+        if not row:
+            # Insert new user with default score and streak
+            await conn.execute(
+                "INSERT INTO users (user_id, score, streak) VALUES ($1, 0, 0)",
+                user_id
+            )
 
  
 
