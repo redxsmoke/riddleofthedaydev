@@ -230,7 +230,4 @@ async def format_question_embed_db(qdict, submitter=None):
         )
     return embed
 
-    async def get_all_scores():
-    async with db_pool.acquire() as conn:
-        rows = await conn.fetch("SELECT user_id::text, score FROM user_scores_table")
-        return {row['user_id']: row['score'] for row in rows}
+ 
