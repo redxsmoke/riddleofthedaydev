@@ -195,7 +195,7 @@ class ListRiddlesView(View):
             submitter = self.client.get_user(riddle["user_id"])
             submitter_name = submitter.display_name if submitter else f"User ID {riddle['user_id']}"
             embed.add_field(
-                name=f"🧩 Riddle #{riddle['id']}",
+                name=f"🧩 Riddle #{riddle['riddle_id']}",
                 value=f"**Question:** {riddle['question']}\n**Answer:** ||{riddle['answer']}||\n_Submitted by: {submitter_name}_",
                 inline=False
             )
