@@ -11,6 +11,21 @@ async def get_score(user_id: str) -> int:
         print(f"[DEBUG] Fetched score: {score}")
         return score if score is not None else 0
 
+async def increment_score(user_id: str):
+    async with db_pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE users SET score = score + 1 WHERE user_id = $1",
+            int(user_id)
+        )
+
+async def increment_streak(user_id: str):
+    async with db_pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE users SET streak = streak + 1 WHERE user_id = $1",
+            int(user_id)
+        )
+
+
 
 async def get_streak(user_id: str) -> int:
     return await db.get_streak(user_id) or 0

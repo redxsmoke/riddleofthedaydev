@@ -84,16 +84,4 @@ async def adjust_score_and_reset_streak(user_id: str, score_delta: int):
             WHERE user_id = $2
         """, score_delta, int(user_id))
 
-async def increment_score(user_id: str):
-    async with db_pool.acquire() as conn:
-        await conn.execute(
-            "UPDATE users SET score = score + 1 WHERE user_id = $1",
-            int(user_id)
-        )
 
-async def increment_streak(user_id: str):
-    async with db_pool.acquire() as conn:
-        await conn.execute(
-            "UPDATE users SET streak = streak + 1 WHERE user_id = $1",
-            int(user_id)
-        )
