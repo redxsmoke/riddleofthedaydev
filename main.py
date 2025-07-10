@@ -316,7 +316,7 @@ async def daily_riddle_post():
         print(f"INFO: Posted daily riddle #{riddle['id']} to channel {channel.name} ({channel_id})")
 
         # Mark this riddle as posted so it is not reused
-        async with db_pool.acquire() as conn:
+        async with get_db_pool().acquire() as conn:
             await conn.execute(
                 "UPDATE user_submitted_questions SET posted_at = NOW() WHERE id = $1",
                 riddle["id"]
