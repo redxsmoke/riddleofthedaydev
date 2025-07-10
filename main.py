@@ -242,7 +242,7 @@ async def riddle_announcement():
     await channel.send(embed=embed)
 
 
-@tasks.loop(seconds=3600)
+@tasks.loop(seconds=30)
 async def daily_riddle_post():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -319,7 +319,7 @@ async def daily_riddle_post():
         print(f"ERROR in daily_riddle_post loop: {e}")
 
 
-@tasks.loop(seconds=3600)  # Runs at 23:00 UTC daily
+@tasks.loop(seconds=45)  # Runs at 23:00 UTC daily
 async def reveal_riddle_answer():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -385,11 +385,16 @@ async def reveal_riddle_answer():
         all_streak_users = await db.get_all_streak_users()
         for user_id_str in all_streak_users:
             if user_id_str in correct_users:
-                continue
+                continue  # They got it right
+
             if user_id and user_id_str == str(user_id):
-                continue
-            if user_id_str not in guess_attempts:
-                await db.reset_streak(user_id_str)
+                continue  # Skip riddle submitter
+
+            if user_id_str in deducted_for_user:
+                continue  # Already penalized
+
+    await db.adjust_score_and_reset_streak(user_id_str, -1)
+    deducted_for_user.add(user_id_str)
 
         current_answer_revealed = True
         current_riddle = None
