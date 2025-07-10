@@ -334,7 +334,7 @@ async def daily_riddle_post():
             return
         async with db.db_pool.acquire() as conn:
             await conn.execute(
-                "UPDATE user_submitted_questions SET posted_at = NOW() WHERE id = $1",
+                "UPDATE user_submitted_questions SET posted_at = NOW() WHERE riddle_id = $1",
                 riddle["id"]
             )
         print(f"DEBUG: Marked riddle #{riddle['id']} as posted in DB")
