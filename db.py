@@ -102,18 +102,19 @@ async def increment_score(user_id: str):
             SET score = users.score + 1
         """, int(user_id))
 
-async def increment_streak(user_id: str):
-    async with db_pool.acquire() as conn:
-        await conn.execute(
-            "UPDATE users SET streak = streak + 1 WHERE user_id = $1",
-            int(user_id)
-        )
 
 async def increment_streak(user_id: str):
     async with db_pool.acquire() as conn:
+        # Insert user if not exists with score=0, streak=0
         await conn.execute("""
             INSERT INTO users (user_id, score, streak, created_at)
-            VALUES ($1, 0, 1, NOW())
-            ON CONFLICT (user_id) DO UPDATE
-            SET streak = users.streak + 1
+            VALUES ($1, 0, 0, NOW())
+            ON CONFLICT (user_id) DO NOTHING
+        """, int(user_id))
+
+        # Increment streak
+        await conn.execute("""
+            UPDATE users
+            SET streak = streak + 1
+            WHERE user_id = $1
         """, int(user_id))
