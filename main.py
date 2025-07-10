@@ -153,7 +153,7 @@ async def on_message(message):
         try: await message.delete()
         except: pass
         await message.channel.send(
-            f"❌ You are out of guesses for this riddle, {message.author.mention}.",
+            f"❌ You are out of guesses for this riddle. Your score has decreased by 1 and your streak has been reset to 0, {message.author.mention}.",
             delete_after=5
         )
         return
@@ -242,7 +242,7 @@ async def riddle_announcement():
     await channel.send(embed=embed)
 
 
-@tasks.loop(seconds=30)
+@tasks.loop(seconds=60)
 async def daily_riddle_post():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -287,24 +287,23 @@ async def daily_riddle_post():
         correct_users = set()
         guess_attempts = {}
         deducted_for_user = set()
-        submitter_name = "Anonymous"
+
+        submitter = None
         if riddle.get("user_id"):
-            user = client.get_user(int(riddle["user_id"]))
-            if user:
-                submitter_name = user.display_name
-            print(f"DEBUG: Riddle submitted by user ID {riddle['user_id']} ({submitter_name})")
+            submitter = client.get_user(int(riddle["user_id"]))
+            if submitter:
+                print(f"DEBUG: Riddle submitted by user ID {riddle['user_id']} ({submitter.display_name})")
+            else:
+                print(f"DEBUG: Riddle submitted by user ID {riddle['user_id']} (user not found)")
         else:
             print("DEBUG: Riddle has no user_id")
 
-        embed = discord.Embed(
-            title=f"🧩 Riddle of the Day #{riddle['riddle_id']}",
-            description=f"**Riddle:** {riddle['question']}\n\n_(Riddle submitted by {submitter_name})_",
-            color=discord.Color.blurple()
-        )
+        # Use your format_question_embed function here
+        embed = await format_question_embed(riddle, submitter)
+
         await channel.send(embed=embed)
         print(f"INFO: Posted daily riddle #{riddle['riddle_id']} to channel {channel.name} ({channel_id})")
 
-        print(f"[ACQUIRE ATTEMPT] db.db_pool right before acquire: {db.db_pool} (type={type(db.db_pool)})")
         if db.db_pool is None:
             print("[ACQUIRE ERROR] db.db_pool is None right before acquire!")
             return
@@ -319,7 +318,8 @@ async def daily_riddle_post():
         print(f"ERROR in daily_riddle_post loop: {e}")
 
 
-@tasks.loop(seconds=45)  # Runs every 45 seconds (adjust for prod)
+
+@tasks.loop(seconds=80)  # Runs every 45 seconds (adjust for prod)
 async def reveal_riddle_answer():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -409,23 +409,23 @@ async def reveal_riddle_answer():
     except Exception as e:
         print(f"ERROR in reveal_riddle_answer loop: {e}")
 
-@tasks.loop(seconds=45)   
+
+@tasks.loop(seconds=100)  # 
 async def daily_purge():
-    now = datetime.utcnow()
-    if now.hour == 10 and now.minute == 0:
-        try:
-            channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)  # or hardcode it
-            channel = client.get_channel(channel_id)
+    try:
+        channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)  # or hardcode it
+        channel = client.get_channel(channel_id)
 
-            if not channel:
-                print("❌ Channel not found for purge.")
-                return
+        if not channel:
+            print("❌ Channel not found for purge.")
+            return
 
-            print(f"🧹 Purging messages in {channel.name} at 10:00 UTC")
+        print(f"🧹 Purging messages in {channel.name} at 10:00 UTC")
 
-            await channel.purge(limit=None)
-        except Exception as e:
-            print(f"❌ Error during daily purge: {e}")
+        await channel.purge(limit=None)
+    except Exception as e:
+        print(f"❌ Error during daily purge: {e}")
+
 
 
 
