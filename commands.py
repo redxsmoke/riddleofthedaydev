@@ -398,19 +398,23 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         print(f"[removeriddle] Command invoked with riddle_id={riddle_id}")
         await interaction.response.defer(ephemeral=True)
 
-        async with db_pool.acquire() as conn:
-            result = await conn.execute(
-                "DELETE FROM user_submitted_questions WHERE id = $1",
-                riddle_id
-            )
-        print(f"[removeriddle] DB execute result: {result}")
+        try:
+            async with db_pool.acquire() as conn:
+                result = await conn.execute(
+                    "DELETE FROM user_submitted_questions WHERE id = $1",
+                    riddle_id
+                )
+            print(f"[removeriddle] DB execute result: {result}")
 
-        if result.endswith("0"):
-            await interaction.followup.send(f"❌ No riddle found with ID #{riddle_id}.", ephemeral=True)
-            print(f"[removeriddle] No riddle found with ID #{riddle_id}")
-        else:
-            await interaction.followup.send(f"✅ Removed riddle #{riddle_id}.", ephemeral=True)
-            print(f"[removeriddle] Removed riddle #{riddle_id}")
+            if result.endswith("0"):
+                await interaction.followup.send(f"❌ No riddle found with ID #{riddle_id}.", ephemeral=True)
+                print(f"[removeriddle] No riddle found with ID #{riddle_id}")
+            else:
+                await interaction.followup.send(f"✅ Removed riddle #{riddle_id}.", ephemeral=True)
+                print(f"[removeriddle] Removed riddle #{riddle_id}")
+        except Exception as e:
+            print(f"[removeriddle] ERROR: {e}")
+            await interaction.followup.send("❌ An error occurred while removing the riddle.", ephemeral=True)
 
 
 
@@ -428,11 +432,14 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             print("[listriddles] No riddles found")
             return
 
-        view = ListRiddlesView(riddles, interaction.user.id, interaction.client)
-        embed = await view.get_page_embed()
-        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-        print("[listriddles] Sent riddles list embed")
-
+        try:
+            view = ListRiddlesView(riddles, interaction.user.id, interaction.client)
+            embed = await view.get_page_embed()
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            print("[listriddles] Sent riddles list embed")
+        except Exception as e:
+            print(f"[listriddles] ERROR generating or sending embed: {e}")
+            await interaction.followup.send("❌ Failed to show riddles.", ephemeral=True)
 
 
     @tree.command(name="leaderboard", description="Show the riddle leaderboard with pagination")
@@ -440,62 +447,69 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         print("[leaderboard] Command invoked")
         await interaction.response.defer(ephemeral=True)
 
-        uid = interaction.user.id
-        print(f"[submitted riddle] Ensuring user {uid} exists in DB")
-        await ensure_user_exists(uid)
+        try:
+            uid = interaction.user.id
+            print(f"[submitted riddle] Ensuring user {uid} exists in DB")
+            await ensure_user_exists(uid)
 
-        async with db_pool.acquire() as conn:
-            rows = await conn.fetch("SELECT user_id, score, streak FROM users WHERE score >= 1 OR streak >= 1")
-        print(f"[leaderboard] Fetched {len(rows)} users")
+            async with db_pool.acquire() as conn:
+                rows = await conn.fetch("SELECT user_id, score, streak FROM users WHERE score >= 1 OR streak >= 1")
+            print(f"[leaderboard] Fetched {len(rows)} users")
 
-        filtered_users = [row["user_id"] for row in rows]
-        if not filtered_users:
-            await interaction.followup.send("No leaderboard data available.", ephemeral=True)
-            print("[leaderboard] No leaderboard data available")
-            return
+            filtered_users = [row["user_id"] for row in rows]
+            if not filtered_users:
+                await interaction.followup.send("No leaderboard data available.", ephemeral=True)
+                print("[leaderboard] No leaderboard data available")
+                return
 
-        rows.sort(key=lambda r: (r["score"], r["streak"]), reverse=True)
+            rows.sort(key=lambda r: (r["score"], r["streak"]), reverse=True)
 
-        view = LeaderboardView(client, filtered_users, per_page=10)
+            view = LeaderboardView(client, filtered_users, per_page=10)
+            initial_users = filtered_users[:10]
 
-        initial_users = filtered_users[:10]
+            embed = Embed(
+                title=f"🏆 Riddle Leaderboard (Page 1 / {(len(filtered_users) - 1) // 10 + 1})",
+                color=discord.Color.gold()
+            )
 
-        embed = Embed(
-            title=f"🏆 Riddle Leaderboard (Page 1 / {(len(filtered_users) - 1) // 10 + 1})",
-            color=discord.Color.gold()
-        )
+            max_score = max((row["score"] for row in rows), default=0)
 
-        max_score = max((row["score"] for row in rows), default=0)
+            description_lines = []
+            for idx, user_id in enumerate(initial_users, start=1):
+                try:
+                    user = await client.fetch_user(int(user_id))
+                    user_row = next((r for r in rows if r["user_id"] == user_id), None)
+                    score_val = user_row["score"] if user_row else 0
+                    streak_val = user_row["streak"] if user_row else 0
 
-        description_lines = []
-        for idx, user_id in enumerate(initial_users, start=1):
+                    score_line = f"{score_val}"
+                    if score_val == max_score and max_score > 0:
+                        score_line += " - 👑 🍣 Master Sushi Chef"
+
+                    rank = get_rank(score_val)
+                    streak_rank = get_streak_rank(streak_val)
+                    streak_text = f"🔥{streak_val}"
+                    if streak_rank:
+                        streak_text += f" - {streak_rank}"
+
+                    description_lines.append(f"#{idx} {user.display_name}:")
+                    description_lines.append(f"    • Score: {score_line}")
+                    description_lines.append(f"    • Streak: {streak_text}")
+                    description_lines.append(f"    • Rank: {rank}")
+
+                except Exception:
+                    description_lines.append(f"#{idx} Unknown User (ID: {user_id})")
+
+            embed.description = "\n".join(description_lines)
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            print("[leaderboard] Leaderboard embed sent")
+
+        except Exception as e:
+            print(f"[leaderboard] ERROR: {e}")
             try:
-                user = await client.fetch_user(int(user_id))
-                user_row = next((r for r in rows if r["user_id"] == user_id), None)
-                score_val = user_row["score"] if user_row else 0
-                streak_val = user_row["streak"] if user_row else 0
-
-                score_line = f"{score_val}"
-                if score_val == max_score and max_score > 0:
-                    score_line += " - 👑 🍣 Master Sushi Chef"
-
-                rank = get_rank(score_val)
-                streak_rank = get_streak_rank(streak_val)
-                streak_text = f"🔥{streak_val}"
-                if streak_rank:
-                    streak_text += f" - {streak_rank}"
-
-                description_lines.append(f"#{idx} {user.display_name}:")
-                description_lines.append(f"    • Score: {score_line}")
-                description_lines.append(f"    • Streak: {streak_text}")
-                description_lines.append(f"    • Rank: {rank}")
-
+                await interaction.followup.send("❌ An error occurred while fetching the leaderboard.", ephemeral=True)
             except Exception:
-                description_lines.append(f"#{idx} Unknown User (ID: {user_id})")
-
-        embed.description = "\n".join(description_lines)
-        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-        print("[leaderboard] Leaderboard embed sent")
+                pass
 
 
 
