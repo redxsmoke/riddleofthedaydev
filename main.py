@@ -237,8 +237,7 @@ async def on_command_error(interaction: discord.Interaction, error):
         traceback.print_exc()
 
 
-#@tasks.loop(time=time(hour=15, minute=36, second=0))  # 10 minutes before daily post
-@tasks.loop(seconds=30)
+@tasks.loop(time=time(hour=15, minute=36, second=0))  # 10 minutes before daily post
 async def riddle_announcement():
     channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
     channel = client.get_channel(channel_id)
