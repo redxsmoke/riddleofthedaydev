@@ -1,21 +1,22 @@
-import discord
-from discord import app_commands
-from discord.ext import tasks
-from discord import Interaction, Embed
-from discord.ui import View, Button
-import commands
 import os
 import re
 import random
 import traceback
-from datetime import datetime, timezone, time, timedelta
-from views import LeaderboardView, create_leaderboard_embed
-from db import create_db_pool, upsert_user, get_user, insert_submitted_question, get_all_submitted_questions
 import asyncio
+from datetime import datetime, timezone, time, timedelta
+
+import discord
+from discord import app_commands, Interaction, Embed
+from discord.ext import tasks
+from discord.ui import View, Button
 
 import asyncpg
+
 import db
-from commands import setup, set_db_pool  # make sure setup is exported
+import commands
+from commands import setup  # remove set_db_pool — you don't need it anymore
+from views import LeaderboardView, create_leaderboard_embed
+from db import create_db_pool, upsert_user, get_user, insert_submitted_question, get_all_submitted_questions
 
 
 # Only one intents declaration (fixed duplicate)

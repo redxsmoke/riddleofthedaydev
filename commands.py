@@ -7,13 +7,7 @@ import traceback
 from db import get_user, insert_submitted_question, db_pool
 from views import ListRiddlesView, LeaderboardView
 
-
-db_pool = None
-
-def set_db_pool(pool):
-    global db_pool
-    db_pool = pool
-
+ 
  
 # You need to create your client first
 intents = discord.Intents.default()
