@@ -163,8 +163,10 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
 
         question = question.strip()
         answer = answer.strip().lower()
+        print(f"[submitriddle] Received question: '{question}' and answer: '{answer}'")
 
         if not question or not answer:
+            print("[submitriddle] Question or answer is empty")
             await interaction.response.send_message("❌ Question and answer cannot be empty.", ephemeral=True)
             return
 
@@ -172,30 +174,43 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         print("[submitriddle] Deferred interaction response")
 
         uid = interaction.user.id
-        print(f"[submitted riddle] Ensuring user {uid} exists in DB")
+        print(f"[submitriddle] Ensuring user {uid} exists in DB")
         await ensure_user_exists(uid)
 
-        async with db_pool.acquire() as conn:
-            existing = await conn.fetchrow(
-                "SELECT * FROM user_submitted_questions WHERE LOWER(TRIM(question)) = LOWER(TRIM($1))",
-                question
-            )
-        print(f"[submitriddle] Duplicate check result: {existing}")
+        try:
+            async with db_pool.acquire() as conn:
+                existing = await conn.fetchrow(
+                    "SELECT * FROM user_submitted_questions WHERE LOWER(TRIM(question)) = LOWER(TRIM($1))",
+                    question
+                )
+            print(f"[submitriddle] Duplicate check result: {existing}")
+        except Exception as e:
+            print(f"[submitriddle] ERROR checking for duplicate question: {e}")
+            await interaction.followup.send("❌ Database error during duplicate check.", ephemeral=True)
+            return
 
         if existing:
+            print("[submitriddle] Duplicate riddle found, aborting submission")
             await interaction.followup.send(
                 "❌ This riddle has already been submitted. Please try a different one.",
                 ephemeral=True
             )
             return
 
-        # Insert into DB
-        await insert_submitted_question(user_id=interaction.user.id, question=question, answer=answer)
-        print("[submitriddle] Inserted submitted question")
+        try:
+            await insert_submitted_question(user_id=uid, question=question, answer=answer)
+            print("[submitriddle] Inserted submitted question")
+        except Exception as e:
+            print(f"[submitriddle] ERROR inserting submitted question: {e}")
+            await interaction.followup.send("❌ Failed to submit your riddle.", ephemeral=True)
+            return
 
-        # Update user score by 1
-        await update_user_score_and_streak(interaction.user.id, add_score=1)
-        print("[submitriddle] Updated user score by 1")
+        try:
+            await update_user_score_and_streak(uid, add_score=1)
+            print("[submitriddle] Updated user score by 1")
+        except Exception as e:
+            print(f"[submitriddle] ERROR updating user score: {e}")
+            # Not critical enough to block response, continue anyway
 
         # Optional: Notify mod user
         notify_user_id = os.getenv("NOTIFY_USER_ID")
@@ -221,6 +236,8 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             print("[submitriddle] DM confirmation sent to submitter")
         except Exception:
             print("[submitriddle] Failed to send DM confirmation to submitter")
+
+    
 
 
 
