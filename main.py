@@ -329,86 +329,70 @@ async def daily_riddle_post():
 
 
 
-@tasks.loop(seconds=80)  # Runs every 45 seconds (adjust for prod)
+@tasks.loop(seconds=80)
 async def reveal_riddle_answer():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
     try:
         if not current_riddle or current_answer_revealed:
-            print("DEBUG: No active riddle or answer already revealed. Skipping reveal.")
             return
 
         channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
         channel = client.get_channel(channel_id)
         if not channel:
-            print("Answer reveal skipped: Channel not found.")
             return
 
-        answer = current_riddle.get("answer", "Unknown")
         riddle_id = current_riddle.get("riddle_id", "???")
+        answer = current_riddle.get("answer", "Unknown")
 
-        embed = discord.Embed(
+        await channel.send(embed=discord.Embed(
             title=f"🔔 Answer to Riddle #{riddle_id}",
-            description=f"**Answer:** {answer}\n\n💡 Use `/submitriddle` to submit your own riddle!",
+            description=f"**Answer:** {answer}\n\n💡 Submit your own with `/submitriddle`!",
             color=discord.Color.green()
-        )
-        await channel.send(embed=embed)
+        ))
 
         if correct_users:
             all_scores = await db.get_all_scores()
-            max_score = max(all_scores.values()) if all_scores else 0
+            max_score = max(all_scores.values(), default=0)
 
-            congrats_embed = discord.Embed(
-                title="🎊 Congratulations to the following users who solved today's riddle! 🎊",
+            embed = discord.Embed(
+                title="🎊 Congrats to today's winners!",
                 color=discord.Color.gold()
             )
-            description_lines = []
-            for idx, user_id_str in enumerate(correct_users, start=1):
+
+            lines = []
+            for i, user_id_str in enumerate(correct_users, 1):
                 try:
                     user = await client.fetch_user(int(user_id_str))
-                    score_val = all_scores.get(user_id_str, 0)
-                    streak_val = await db.get_streak(user_id_str)
+                    score = all_scores.get(user_id_str, 0)
+                    streak = await db.get_streak(user_id_str)
 
-                    score_line = f"{score_val}"
-                    if score_val == max_score and max_score > 0:
-                        score_line += " - 👑 🍣 Master Sushi Chef"
+                    crown = " - 👑 🍣 Master Sushi Chef" if score == max_score and max_score > 0 else ""
+                    rank = get_rank(score, streak)
 
-                    rank = get_rank(score_val, streak_val)
-                    streak_line = f"🔥{streak_val}"
+                    lines.append(f"#{i} {user.display_name}")
+                    lines.append(f"• Score: {score}{crown}")
+                    lines.append(f"• Rank: {rank}")
+                    lines.append(f"• Streak: 🔥 {streak}")
+                    lines.append("")
+                except:
+                    lines.append(f"#{i} <@{user_id_str}>\n")
 
-                    description_lines.append(f"#{idx} {user.display_name}:")
-                    description_lines.append(f"    • Score: {score_line}")
-                    description_lines.append(f"    • Rank: {rank}")
-                    description_lines.append(f"    • Streak: {streak_line}")
-                    description_lines.append("")
-                except Exception:
-                    description_lines.append(f"#{idx} <@{user_id_str}>")
-                    description_lines.append("")
-
-            congrats_embed.description = "\n".join(description_lines)
-            await channel.send(embed=congrats_embed)
+            embed.description = "\n".join(lines)
+            await channel.send(embed=embed)
         else:
-            await channel.send("😢 No one guessed the riddle correctly today.")
+            await channel.send("😢 Nobody got it right today.")
 
-        user_id = current_riddle.get("user_id_id")
-
-        all_streak_users = await db.get_all_streak_users()
-        for user_id_str in all_streak_users:
-            if user_id_str in correct_users:
-                continue  # They got it right
-
-            if user_id and user_id_str == str(user_id):
-                continue  # Skip riddle submitter
-
-            if user_id_str in deducted_for_user:
-                continue  # Already penalized
-
+        # Deduct for everyone who failed (except riddle author)
+        riddle_author_id = current_riddle.get("user_id")
+        all_users = await db.get_all_streak_users()
+        for uid in all_users:
+            if uid in correct_users or uid == str(riddle_author_id) or uid in deducted_for_user:
+                continue
             try:
-                await db.adjust_score_and_reset_streak(user_id_str, -1)
-                print(f"❗ Deducted and reset streak for {user_id_str}")
-                deducted_for_user.add(user_id_str)
+                await db.adjust_score_and_reset_streak(uid, -1)
             except Exception as e:
-                print(f"⚠️ Error deducting/resetting for {user_id_str}: {e}")
+                print(f"Error deducting for {uid}: {e}")
 
         current_answer_revealed = True
         current_riddle = None
@@ -417,7 +401,7 @@ async def reveal_riddle_answer():
         deducted_for_user.clear()
 
     except Exception as e:
-        print(f"ERROR in reveal_riddle_answer loop: {e}")
+        print(f"Reveal loop error: {e}")
 
 
 @tasks.loop(time=time(hour=11, minute=50, second=0, tzinfo=timezone.utc))
@@ -477,6 +461,106 @@ async def daily_riddle_post_callback():
     )
     await channel.send(embed=embed)
     print(f"✅ Sent manual riddle post #{riddle['riddle_id']}.")
+
+
+
+@client.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    ch_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
+    if message.channel.id != ch_id:
+        return
+
+    global correct_users, guess_attempts, deducted_for_user, current_riddle, current_answer_revealed
+
+    user_id = str(message.author.id)
+    content = message.content.strip()
+
+    if not current_riddle or current_answer_revealed:
+        return
+
+    # Prevent riddle submitter from answering
+    if current_riddle.get("user_id") == user_id:
+        user_words = clean_and_filter(content)
+        answer_words = clean_and_filter(current_riddle["answer"])
+        if any(word in answer_words for word in user_words):
+            try: await message.delete()
+            except: pass
+            await message.channel.send(
+                "⛔ You submitted this riddle and cannot answer it.",
+                delete_after=10
+            )
+        return
+
+    # Already answered correctly
+    if user_id in correct_users:
+        try: await message.delete()
+        except: pass
+        await message.channel.send(
+            f"✅ You already answered correctly, {message.author.mention}.",
+            delete_after=5
+        )
+        return
+
+    # Track guess attempts
+    guess_attempts[user_id] = guess_attempts.get(user_id, 0) + 1
+    attempts = guess_attempts[user_id]
+
+    user_words = clean_and_filter(content)
+    answer_words = clean_and_filter(current_riddle["answer"])
+
+    if any(word in user_words for word in answer_words):
+        try: await message.delete()
+        except: pass
+
+        await db.increment_score(user_id)
+        await db.increment_streak(user_id)
+        score = await db.get_score(user_id)
+
+        correct_users.add(user_id)
+
+        embed = discord.Embed(
+            title="🎉 You guessed it!",
+            description=f"🥳 Nice job {message.author.mention}, your total score is now **{score}**!",
+            color=discord.Color.green()
+        )
+        await message.channel.send(embed=embed)
+        return
+
+    # Incorrect guess logic
+    remaining = 5 - attempts
+    if remaining <= 0 and user_id not in deducted_for_user:
+        await db.decrement_score(user_id)
+        await db.reset_streak(user_id)
+        deducted_for_user.add(user_id)
+        await message.channel.send(
+            f"❌ Incorrect, {message.author.mention}. You've used all 5 guesses and lost 1 point.",
+            delete_after=7
+        )
+    elif remaining > 0:
+        await message.channel.send(
+            f"❌ Incorrect, {message.author.mention}. {remaining} guess(es) left.",
+            delete_after=6
+        )
+
+    try: await message.delete()
+    except: pass
+
+    # Countdown to answer reveal
+    now = datetime.now(timezone.utc)
+    reveal_dt = datetime.combine(now.date(), time(23, 0), tzinfo=timezone.utc)
+    if now >= reveal_dt:
+        reveal_dt += timedelta(days=1)
+    delta = reveal_dt - now
+    h, m = divmod(delta.seconds // 60, 60)
+    await message.channel.send(
+        f"⏳ Answer will be revealed in {h} hour(s), {m} minute(s).",
+        delete_after=10
+    )
+
+
 
 
 @client.event
