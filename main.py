@@ -409,6 +409,24 @@ async def reveal_riddle_answer():
     except Exception as e:
         print(f"ERROR in reveal_riddle_answer loop: {e}")
 
+@tasks.loop(seconds=45)   
+async def daily_purge():
+    now = datetime.utcnow()
+    if now.hour == 10 and now.minute == 0:
+        try:
+            channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)  # or hardcode it
+            channel = client.get_channel(channel_id)
+
+            if not channel:
+                print("❌ Channel not found for purge.")
+                return
+
+            print(f"🧹 Purging messages in {channel.name} at 10:00 UTC")
+
+            await channel.purge(limit=None)
+        except Exception as e:
+            print(f"❌ Error during daily purge: {e}")
+
 
 
 async def daily_riddle_post_callback():
@@ -468,7 +486,8 @@ async def on_ready():
         daily_riddle_post.start()
     if not reveal_riddle_answer.is_running():
         reveal_riddle_answer.start()
-
+    if not daily_purge.is_running():
+        daily_purge.start()
 
 async def run_bot():
     TOKEN = os.getenv("DISCORD_BOT_TOKEN")
