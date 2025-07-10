@@ -518,9 +518,9 @@ async def startup():
         commands.set_db_pool(pool)
         print("✅ Database connection pool created successfully.")
 
-    print("⏳ Recreating the riddle table...")
-    await recreate_table()
-    print("✅ Riddle table recreated.")
+        print("⏳ Recreating the riddle table...")
+        await recreate_table()
+        print("✅ Riddle table recreated.")
 
     except Exception as e:
         print(f"❌ Failed to connect to the database or sync commands: {e}")
