@@ -3,7 +3,7 @@ from discord import app_commands
 from discord.ext import tasks
 from discord import Interaction, Embed
 from discord.ui import View, Button
-import asyncio
+
 import json
 import os
 import re
@@ -12,7 +12,9 @@ import traceback
 from datetime import datetime, timezone, time, timedelta
 from views import LeaderboardView, create_leaderboard_embed
 from db import create_db_pool, upsert_user, get_user, insert_submitted_question, get_all_submitted_questions
-from commands import setup, set_db_pool  # make sure setup is exported
+import asyncio
+from commands import set_db_pool, setup   
+import asyncpg
 
 intents = discord.Intents.default()
 intents.members = True
@@ -20,7 +22,9 @@ intents.message_content = True
 
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
- 
+
+
+
 
 
 # Constants for file names
@@ -540,8 +544,16 @@ async def on_ready():
 
 if __name__ == "__main__":
     TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-    if not TOKEN:
-        print("ERROR: DISCORD_BOT_TOKEN environment variable is not set.")
+    DB_URL = os.getenv("DATABASE_URL")
+
+    if not TOKEN or not DB_URL:
+        print("ERROR: Required environment variables are not set.")
         exit(1)
 
-    client.run(TOKEN)
+    async def startup():
+        pool = await asyncpg.create_pool(DB_URL)
+        set_db_pool(pool)
+        setup(tree, client)
+        await client.start(TOKEN)
+
+    asyncio.run(startup())

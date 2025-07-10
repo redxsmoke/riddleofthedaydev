@@ -56,9 +56,13 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
 
     @tree.command(name="myranks", description="Show your riddle score, streak, and rank")
     async def myranks(interaction: discord.Interaction):
-        uid = interaction.user.id
+        if db_pool is None:
+            await interaction.response.send_message("Database connection not initialized.", ephemeral=True)
+            return
 
+        uid = interaction.user.id
         row = await get_user(uid)
+  
         score_val = row["score"] if row else 0
         streak_val = row["streak"] if row else 0
 
@@ -639,4 +643,3 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
     setup_test_sequence_commands(tree, client)
     
 
-setup(tree, client)
