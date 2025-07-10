@@ -3,7 +3,7 @@ from discord import app_commands
 from discord.ext import tasks
 from discord import Interaction, Embed
 from discord.ui import View, Button
-
+import commands
 import json
 import os
 import re
