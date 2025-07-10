@@ -28,6 +28,11 @@ tree = app_commands.CommandTree(client)
 
 db_pool: asyncpg.pool.Pool = None  # Global DB pool
 
+current_riddle = None
+current_answer_revealed = False
+correct_users = set()
+guess_attempts = {}
+deducted_for_user = set()
 
 STOP_WORDS = {"a", "an", "the", "is", "was", "were", "of", "to", "and", "in", "on", "at", "by"}
 
@@ -320,6 +325,9 @@ async def daily_riddle_post():
 
     except Exception as e:
         print(f"ERROR in daily_riddle_post loop: {e}")
+
+
+
 
 
 @tasks.loop(seconds=45)  # Runs at 23:00 UTC daily
