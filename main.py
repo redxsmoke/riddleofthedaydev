@@ -26,8 +26,7 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
- 
-
+db_pool: asyncpg.pool.Pool = None  # Global DB pool
 
 
 STOP_WORDS = {"a", "an", "the", "is", "was", "were", "of", "to", "and", "in", "on", "at", "by"}
@@ -37,9 +36,21 @@ def clean_and_filter(text):
     return [w for w in words if w not in STOP_WORDS]
 
 
+async def count_unused_questions():
+    async with db_pool.acquire() as conn:
+        result = await conn.fetchval("SELECT COUNT(*) FROM user_submitted_questions WHERE posted_at IS NULL")
+    return result or 0
 
 
-def format_question_embed(qdict, submitter=None):
+async def get_unused_questions():
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT id, question, answer, submitter_id FROM user_submitted_questions WHERE posted_at IS NULL"
+        )
+        return [dict(row) for row in rows]
+
+
+async def format_question_embed(qdict, submitter=None):
     embed = discord.Embed(
         title=f"🧠 Riddle #{qdict['id']}",
         description=qdict['question'],
@@ -47,7 +58,7 @@ def format_question_embed(qdict, submitter=None):
     )
     embed.set_footer(text="Answer will be revealed at 23:00 UTC. Use /submitriddle to contribute your own!")
 
-    remaining = count_unused_questions()
+    remaining = await count_unused_questions()
     if remaining < 5:
         embed.add_field(
             name="⚠️ Riddle Supply Low",
@@ -61,6 +72,7 @@ def format_question_embed(qdict, submitter=None):
             inline=False
         )
     return embed
+
 
 def get_rank(score, streak=0):
     # Example rank calculation, customize as needed
@@ -89,6 +101,7 @@ def get_rank(score, streak=0):
             return "Sushi Einstein 🧪"
     else:
         return "Sushi Newbie 🍽️"
+
 
 @client.event
 async def on_message(message):
@@ -211,6 +224,7 @@ async def on_message(message):
     )
     await message.channel.send(countdown_msg, delete_after=12)
 
+
 @client.event
 async def on_command_error(interaction: discord.Interaction, error):
     if isinstance(error, app_commands.errors.MissingPermissions):
@@ -221,6 +235,7 @@ async def on_command_error(interaction: discord.Interaction, error):
         await interaction.response.send_message(f"⚠️ An error occurred: {error}", ephemeral=True)
         print(f"Error in command {interaction.command}: {error}")
         traceback.print_exc()
+
 
 @tasks.loop(time=time(hour=15, minute=36, second=0))  # 10 minutes before daily post
 async def riddle_announcement():
@@ -238,7 +253,8 @@ async def riddle_announcement():
 
     await channel.send(embed=embed)
 
-@tasks.loop(seconds=30) # Posts every day at noon UTC
+
+@tasks.loop(seconds=30)  # Posts every day at noon UTC
 async def daily_riddle_post():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -252,11 +268,12 @@ async def daily_riddle_post():
         print("Daily riddle post skipped: Channel not found.")
         return
 
-    if not submitted_questions:
+    riddles = await get_unused_questions()
+    if not riddles:
         print("No riddles available to post.")
         return
 
-    riddle = random.choice(submitted_questions)
+    riddle = random.choice(riddles)
     current_riddle = riddle
     current_answer_revealed = False
     correct_users = set()
@@ -274,10 +291,18 @@ async def daily_riddle_post():
         color=discord.Color.blurple()
     )
     await channel.send(embed=embed)
+    
+    # Mark this riddle as posted so it is not reused
+    async with db_pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE user_submitted_questions SET posted_at = NOW() WHERE id = $1",
+            riddle["id"]
+        )
 
     print(f"Posted daily riddle #{riddle['id']}")
 
-@tasks.loop(seconds=45) # Runs at 23:00 UTC daily
+
+@tasks.loop(seconds=45)  # Runs at 23:00 UTC daily
 async def reveal_riddle_answer():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -362,6 +387,7 @@ async def reveal_riddle_answer():
     guess_attempts.clear()
     deducted_for_user.clear()
 
+
 async def daily_riddle_post_callback():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -375,11 +401,12 @@ async def daily_riddle_post_callback():
         print("⚠️ Could not find channel for riddle post.")
         return
 
-    if not submitted_questions:
+    riddles = await get_unused_questions()
+    if not riddles:
         print("⛔ No riddles available to post.")
         return
 
-    riddle = pick_next_riddle()
+    riddle = random.choice(riddles)
     current_riddle = riddle
     current_answer_revealed = False
     correct_users = set()
@@ -399,6 +426,7 @@ async def daily_riddle_post_callback():
     )
     await channel.send(embed=embed)
     print(f"✅ Sent manual riddle post #{riddle['id']}.")
+
 
 @client.event
 async def on_ready():
@@ -442,4 +470,3 @@ async def startup():
 
 if __name__ == "__main__":
     asyncio.run(startup())
-
