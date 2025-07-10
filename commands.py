@@ -17,66 +17,8 @@ intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-
-# Ensure user exists helper
- 
-async def ensure_user_exists(user_id: int):
-    if db_pool is None:
-        raise RuntimeError("DB pool not initialized!")
-    async with db_pool.acquire() as conn:
-        exists = await conn.fetchval("SELECT 1 FROM users WHERE user_id=$1", user_id)
-        if not exists:
-            await conn.execute(
-                "INSERT INTO users (user_id, score, streak) VALUES ($1, 0, 0)", user_id
-            )
-
-
-import functools
-
-# Decorator to auto-register user before command runs
-def auto_register_user(func):
-    @functools.wraps(func)
-    async def wrapper(interaction: discord.Interaction, *args, **kwargs):
-        try:
-            await ensure_user_exists(interaction.user.id)
-        except Exception as e:
-            print(f"[auto_register_user] Failed to ensure user exists: {e}")
-            # Send ephemeral error message to user
-            try:
-                await interaction.response.send_message(
-                    "Internal error: failed to register user in database.", ephemeral=True
-                )
-            except Exception:
-                # If response already sent or failed, fallback to followup
-                await interaction.followup.send(
-                    "Internal error: failed to register user in database.", ephemeral=True
-                )
-            return
-        return await func(interaction, *args, **kwargs)
-    return wrapper
-
-
-async def update_user_score_and_streak(user_id: int, add_score=0, add_streak=0):
-    if db_pool is None:
-        raise RuntimeError("DB pool not initialized!")
-    async with db_pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT score, streak FROM users WHERE user_id=$1", user_id)
-        if row:
-            new_score = max(0, row["score"] + add_score)
-            new_streak = max(0, row["streak"] + add_streak)
-            await conn.execute(
-                "UPDATE users SET score=$1, streak=$2 WHERE user_id=$3",
-                new_score, new_streak, user_id
-            )
-        else:
-            new_score = max(0, add_score)
-            new_streak = max(0, add_streak)
-            await conn.execute(
-                "INSERT INTO users (user_id, score, streak) VALUES ($1, $2, $3)",
-                user_id, new_score, new_streak
-            )
-    return new_score, new_streak
-
+# Assume you have imported your DB helper functions somewhere:
+# from db import get_user, upsert_user, insert_submitted_question, db_pool
 
 # Utility functions for ranks (unchanged)
 def get_rank(score):
@@ -113,7 +55,6 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
 
 
     @tree.command(name="myranks", description="Show your riddle score, streak, and rank")
-    @auto_register_user
     async def myranks(interaction: discord.Interaction):
         print("[myranks] Command invoked")
 
@@ -164,7 +105,6 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
 
 
     @tree.command(name="submitriddle", description="Submit a new riddle for the daily contest")
-    @auto_register_user
     @app_commands.describe(question="The riddle question", answer="The answer to the riddle")
     async def submitriddle(interaction: discord.Interaction, question: str, answer: str):
         question = question.strip()
@@ -442,7 +382,6 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
 
 
     @tree.command(name="leaderboard", description="Show the riddle leaderboard with pagination")
-    @auto_register_user
     async def leaderboard(interaction: Interaction):
         await interaction.response.defer(ephemeral=True)
 
@@ -604,7 +543,25 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
 
 
 
- 
+# A top-level helper function for updating score and streak
+async def update_user_score_and_streak(user_id: int, add_score=0, add_streak=0):
+    async with db_pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT score, streak FROM users WHERE user_id=$1", user_id)
+        if row:
+            new_score = max(0, row["score"] + add_score)
+            new_streak = max(0, row["streak"] + add_streak)
+            await conn.execute(
+                "UPDATE users SET score=$1, streak=$2 WHERE user_id=$3",
+                new_score, new_streak, user_id
+            )
+        else:
+            new_score = max(0, add_score)
+            new_streak = max(0, add_streak)
+            await conn.execute(
+                "INSERT INTO users (user_id, score, streak) VALUES ($1, $2, $3)",
+                user_id, new_score, new_streak
+            )
+    return new_score, new_streak
 
 
  
