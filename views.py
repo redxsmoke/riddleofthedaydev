@@ -2,9 +2,13 @@ from discord import app_commands, Interaction, Embed
 from discord.ui import View, Button
 import discord
 import db  
+from db import db_pool
 
 async def get_score(user_id: str) -> int:
-    return await db.get_score(user_id) or 0
+    async with db_pool.acquire() as conn:
+        score = await conn.fetchval("SELECT score FROM users WHERE user_id = $1", int(user_id))
+        return score if score is not None else 0
+
 
 async def get_streak(user_id: str) -> int:
     return await db.get_streak(user_id) or 0
