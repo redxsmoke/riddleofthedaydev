@@ -486,6 +486,7 @@ async def startup():
     try:
         print("⏳ Connecting to the database...")
         pool = await db.create_db_pool()
+        db.db_pool = pool  
         commands.set_db_pool(pool)
         print("✅ Database connection pool created successfully.")
 
