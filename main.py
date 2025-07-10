@@ -126,33 +126,14 @@ async def on_message(message):
     if current_riddle.get("user_id") == user_id:
         user_words = clean_and_filter(content)
         answer_words = clean_and_filter(current_riddle["answer"])
-        print(f"SENDING CONGRATS TO {message.author.display_name}")
-        if any(word in answer_words for word in user_words):
-            print("[DEBUG] Correct guess detected.")
+        # FIXED: consistent logic here and reject submitter's attempts instead of congratulating
+        if any(word in user_words for word in answer_words):
             try:
                 await message.delete()
-                print("[DEBUG] Deleted user message")
             except Exception as e:
-                print(f"[ERROR] Failed to delete: {e}")
-
-            correct_users.add(user_id)
-            print("[DEBUG] Added to correct_users")
-
-            await db.increment_score(user_id)
-            await db.increment_streak(user_id)
-            score = await db.get_score(user_id)
-            print(f"[DEBUG] Score incremented. New score: {score}")
-
-            embed = discord.Embed(
-                title="🎉 You guessed it!",
-                description=f"🥳 Congrats {message.author.mention}, you guessed right! Your total score is now **{score}**!",
-                color=discord.Color.green()
-            )
-            await message.channel.send(embed=embed)
-            print("[DEBUG] Sent congrats embed")
-
+                print(f"[ERROR] Failed to delete submitter message: {e}")
+            await message.channel.send("⛔ You submitted this riddle and cannot answer it.", delete_after=10)
             return
-
 
     # Already answered correctly
     if user_id in correct_users:
