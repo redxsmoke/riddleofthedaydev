@@ -4,7 +4,6 @@ import os
 db_pool = None  # Global pool variable
 
 async def create_db_pool():
-    """Create and set the global asyncpg pool from DATABASE_URL env var."""
     global db_pool
     if db_pool is None:
         print("⏳ Creating database connection pool...")
@@ -13,6 +12,8 @@ async def create_db_pool():
     else:
         print("⚠️ Database pool already initialized.")
     return db_pool
+
+ 
 
 def get_db_pool():
     if db_pool is None:

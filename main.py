@@ -14,7 +14,6 @@ import asyncpg
 
 import db
 import commands
-from commands import setup  # remove set_db_pool — you don't need it anymore
 from views import LeaderboardView, create_leaderboard_embed
 from db import create_db_pool, upsert_user, get_user, insert_submitted_question, get_all_submitted_questions
 
@@ -496,13 +495,8 @@ async def run_bot():
 
     try:
         print("⏳ Connecting to the database...")
-        pool = await db.create_db_pool()
-        db.db_pool = pool
-        print(f"[STARTUP DEBUG] db module id: {id(db)} at {getattr(db, '__file__', 'unknown file')}")
-        print(f"[STARTUP DEBUG] db.db_pool id: {id(db.db_pool)} (None={db.db_pool is None})")
-        if db.db_pool is None:
-            raise RuntimeError("db_pool is still None after create_db_pool()!")
-        commands.set_db_pool(pool)
+        pool = await db.create_db_pool()  # This sets db.db_pool internally
+        commands.set_db_pool(pool)         # This sets commands.db_pool for commands.py usage
         print("✅ Database connection pool created successfully.")
     except Exception as e:
         print(f"❌ Failed to connect to the database: {e}")
