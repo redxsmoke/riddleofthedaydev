@@ -318,11 +318,16 @@ async def daily_riddle_post():
         print(f"INFO: Posted daily riddle #{riddle['id']} to channel {channel.name} ({channel_id})")
 
         # Mark this riddle as posted so it is not reused
+        print(f"[ACQUIRE DEBUG] db.db_pool right before acquire: {db.db_pool} (type={type(db.db_pool)})")
+        if db.db_pool is None:
+            print("[ACQUIRE ERROR] db.db_pool is None right before acquire!")
+            return
         async with db.db_pool.acquire() as conn:
             await conn.execute(
                 "UPDATE user_submitted_questions SET posted_at = NOW() WHERE id = $1",
                 riddle["id"]
             )
+
         print(f"DEBUG: Marked riddle #{riddle['id']} as posted in DB")
 
     except Exception as e:
