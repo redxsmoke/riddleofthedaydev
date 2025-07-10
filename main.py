@@ -40,30 +40,6 @@ def clean_and_filter(text):
     return [w for w in words if w not in STOP_WORDS]
     
 
-async def format_question_embed(qdict, submitter=None):
-    embed = discord.Embed(
-        title=f"🧠 Riddle #{qdict['id']}",
-        description=qdict['question'],
-        color=discord.Color.blurple()
-    )
-    embed.set_footer(text="Answer will be revealed at 23:00 UTC. Use /submitriddle to contribute your own!")
-
-    remaining = await count_unused_questions()
-    if remaining < 5:
-        embed.add_field(
-            name="⚠️ Riddle Supply Low",
-            value="Less than 5 new riddles remain - submit one with `/submitriddle`!",
-            inline=False
-        )
-    if submitter:
-        embed.add_field(
-            name="Submitted By",
-            value=submitter.mention,
-            inline=False
-        )
-    return embed
-
-
 async def count_unused_questions():
     async with db.db_pool.acquire() as conn:
         result = await conn.fetchval("SELECT COUNT(*) FROM user_submitted_questions WHERE posted_at IS NULL")
@@ -73,14 +49,14 @@ async def count_unused_questions():
 async def get_unused_questions():
     async with db.db_pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT id, question, answer, submitter_id FROM user_submitted_questions WHERE posted_at IS NULL"
+            "SELECT riddle_id, question, answer, submitter_id FROM user_submitted_questions WHERE posted_at IS NULL"
         )
         return [dict(row) for row in rows]
 
 
 async def format_question_embed(qdict, submitter=None):
     embed = discord.Embed(
-        title=f"🧠 Riddle #{qdict['id']}",
+        title=f"🧠 Riddle #{qdict['riddle_id']}",
         description=qdict['question'],
         color=discord.Color.blurple()
     )
@@ -305,7 +281,7 @@ async def daily_riddle_post():
             return
 
         riddle = random.choice(riddles)
-        print(f"DEBUG: Selected riddle ID {riddle['id']} for posting")
+        print(f"DEBUG: Selected riddle ID {riddle['riddle_id']} for posting")
         current_riddle = riddle
         current_answer_revealed = False
         correct_users = set()
@@ -321,12 +297,12 @@ async def daily_riddle_post():
             print("DEBUG: Riddle has no submitter_id")
 
         embed = discord.Embed(
-            title=f"🧩 Riddle of the Day #{riddle['id']}",
+            title=f"🧩 Riddle of the Day #{riddle['riddle_id']}",
             description=f"**Riddle:** {riddle['question']}\n\n_(Riddle submitted by {submitter_name})_",
             color=discord.Color.blurple()
         )
         await channel.send(embed=embed)
-        print(f"INFO: Posted daily riddle #{riddle['id']} to channel {channel.name} ({channel_id})")
+        print(f"INFO: Posted daily riddle #{riddle['riddle_id']} to channel {channel.name} ({channel_id})")
 
         print(f"[ACQUIRE ATTEMPT] db.db_pool right before acquire: {db.db_pool} (type={type(db.db_pool)})")
         if db.db_pool is None:
@@ -335,9 +311,9 @@ async def daily_riddle_post():
         async with db.db_pool.acquire() as conn:
             await conn.execute(
                 "UPDATE user_submitted_questions SET posted_at = NOW() WHERE riddle_id = $1",
-                riddle["id"]
+                riddle["riddle_id"]
             )
-        print(f"DEBUG: Marked riddle #{riddle['id']} as posted in DB")
+        print(f"DEBUG: Marked riddle #{riddle['riddle_id']} as posted in DB")
 
     except Exception as e:
         print(f"ERROR in daily_riddle_post loop: {e}")
@@ -359,7 +335,7 @@ async def reveal_riddle_answer():
             return
 
         answer = current_riddle.get("answer", "Unknown")
-        riddle_id = current_riddle.get("id", "???")
+        riddle_id = current_riddle.get("riddle_id", "???")
 
         embed = discord.Embed(
             title=f"🔔 Answer to Riddle #{riddle_id}",
@@ -456,12 +432,12 @@ async def daily_riddle_post_callback():
             submitter_name = user.display_name
 
     embed = discord.Embed(
-        title=f"🧩 Riddle of the Day #{riddle['id']}",
+        title=f"🧩 Riddle of the Day #{riddle['riddle_id']}",
         description=f"**Riddle:** {riddle['question']}\n\n_(Riddle submitted by {submitter_name})_",
         color=discord.Color.blurple()
     )
     await channel.send(embed=embed)
-    print(f"✅ Sent manual riddle post #{riddle['id']}.")
+    print(f"✅ Sent manual riddle post #{riddle['riddle_id']}.")
 
 
 @client.event
