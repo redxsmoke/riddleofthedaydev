@@ -129,7 +129,10 @@ async def on_message(message):
             print(f"[ERROR] Failed to delete submitter message: {e}")
         
         embed = discord.Embed(
-            description="⛔ You submitted this riddle and cannot answer it.",
+            description=(
+                "⛔ You submitted this riddle and cannot answer it.\n\n"
+                "You were already awarded 1 point when you submitted the question and you will not lose your streak."
+            ),
             color=discord.Color.red()
         )
         await message.channel.send(embed=embed, delete_after=10)
