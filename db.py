@@ -85,3 +85,24 @@ async def adjust_score_and_reset_streak(user_id: str, score_delta: int):
         """, score_delta, int(user_id))
 
 
+
+async def get_score(user_id: str) -> int:
+    print(f"[DEBUG] get_score called with user_id={user_id}, db_pool={db_pool}")
+    async with db_pool.acquire() as conn:
+        score = await conn.fetchval("SELECT score FROM users WHERE user_id = $1", int(user_id))
+        print(f"[DEBUG] Fetched score: {score}")
+        return score if score is not None else 0
+
+async def increment_score(user_id: str):
+    async with db_pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE users SET score = score + 1 WHERE user_id = $1",
+            int(user_id)
+        )
+
+async def increment_streak(user_id: str):
+    async with db_pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE users SET streak = streak + 1 WHERE user_id = $1",
+            int(user_id)
+        )
