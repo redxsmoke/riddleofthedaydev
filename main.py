@@ -308,7 +308,7 @@ async def on_command_error(interaction: discord.Interaction, error):
         print(f"Error in command {interaction.command}: {error}")
         traceback.print_exc()
 
-@tasks.loop(time=time(hour=11, minute=50, second=0))  # 10 minutes before daily post
+@tasks.loop(time=time(hour=3, minute=13, second=0))  # 10 minutes before daily post
 async def riddle_announcement():
     channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
     channel = client.get_channel(channel_id)
@@ -324,7 +324,7 @@ async def riddle_announcement():
 
     await channel.send(embed=embed)
 
-@tasks.loop(time=time(hour=12, minute=0, second=0))  # Posts every day at noon UTC
+@tasks.loop(time=time(hour=3, minute=14, second=0))  # Posts every day at noon UTC
 async def daily_riddle_post():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -348,7 +348,6 @@ async def daily_riddle_post():
     correct_users = set()
     guess_attempts = {}
     deducted_for_user = set()
-
     submitter_name = "Anonymous"
     if riddle.get("submitter_id"):
         user = client.get_user(int(riddle["submitter_id"]))
@@ -364,7 +363,7 @@ async def daily_riddle_post():
 
     print(f"Posted daily riddle #{riddle['id']}")
 
-@tasks.loop(time=time(hour=23, minute=0, second=0))  # Runs at 23:00 UTC daily
+@tasks.loop(time=time(hour=3, minute=16, second=0))  # Runs at 23:00 UTC daily
 async def reveal_riddle_answer():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
