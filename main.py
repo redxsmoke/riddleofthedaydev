@@ -18,7 +18,6 @@ from views import LeaderboardView, create_leaderboard_embed
 from db import create_db_pool, upsert_user, get_user, insert_submitted_question, get_all_submitted_questions
 
 
-# Only one intents declaration (fixed duplicate)
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
@@ -26,7 +25,7 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-db_pool: asyncpg.pool.Pool = None  # Global DB pool
+# REMOVED local db_pool = None — use db.db_pool everywhere
 
 current_riddle = None
 current_answer_revealed = False
@@ -39,16 +38,40 @@ STOP_WORDS = {"a", "an", "the", "is", "was", "were", "of", "to", "and", "in", "o
 def clean_and_filter(text):
     words = re.findall(r'\b\w+\b', text.lower())
     return [w for w in words if w not in STOP_WORDS]
+    
+
+async def format_question_embed(qdict, submitter=None):
+    embed = discord.Embed(
+        title=f"🧠 Riddle #{qdict['id']}",
+        description=qdict['question'],
+        color=discord.Color.blurple()
+    )
+    embed.set_footer(text="Answer will be revealed at 23:00 UTC. Use /submitriddle to contribute your own!")
+
+    remaining = await count_unused_questions()
+    if remaining < 5:
+        embed.add_field(
+            name="⚠️ Riddle Supply Low",
+            value="Less than 5 new riddles remain - submit one with `/submitriddle`!",
+            inline=False
+        )
+    if submitter:
+        embed.add_field(
+            name="Submitted By",
+            value=submitter.mention,
+            inline=False
+        )
+    return embed
 
 
 async def count_unused_questions():
-    async with db_pool.acquire() as conn:
+    async with db.db_pool.acquire() as conn:
         result = await conn.fetchval("SELECT COUNT(*) FROM user_submitted_questions WHERE posted_at IS NULL")
     return result or 0
 
 
 async def get_unused_questions():
-    async with db_pool.acquire() as conn:
+    async with db.db_pool.acquire() as conn:
         rows = await conn.fetch(
             "SELECT id, question, answer, submitter_id FROM user_submitted_questions WHERE posted_at IS NULL"
         )
@@ -81,9 +104,7 @@ async def format_question_embed(qdict, submitter=None):
 
 def get_rank(score, streak=0):
     # Example rank calculation, customize as needed
-    # scores is no longer global, so only use parameters
     if score > 0:
-        # Master Sushi Chef only if top score - can only do this externally now, so keep rank logic simple here
         if streak >= 30:
             return "💚🔥 Wasabi Warlord (30+ day streak)"
         elif streak >= 20:
@@ -122,16 +143,13 @@ async def on_message(message):
     user_id = str(message.author.id)
     content = message.content.strip()
 
-    # If no riddle is active or it's already revealed, ignore all messages (they're not guesses)
     if not current_riddle or current_answer_revealed:
         return
 
-    # Only block submitter IF the active riddle is theirs AND they are trying to guess it
     if current_riddle.get("submitter_id") == user_id:
         user_words = clean_and_filter(content)
         answer_words = clean_and_filter(current_riddle["answer"])
 
-        # Only block if it looks like an answer attempt
         if any(word in answer_words for word in user_words):
             try:
                 await message.delete()
@@ -143,9 +161,8 @@ async def on_message(message):
             )
             return
         else:
-            return 
+            return
 
-    # If they've already answered correctly, ignore further guesses
     if user_id in correct_users:
         try: await message.delete()
         except: pass
@@ -155,7 +172,6 @@ async def on_message(message):
         )
         return
 
-    # Track how many guesses they’ve made
     attempts = guess_attempts.get(user_id, 0)
     if attempts >= 5:
         try: await message.delete()
@@ -166,20 +182,16 @@ async def on_message(message):
         )
         return
 
-    # Record this guess
     guess_attempts[user_id] = attempts + 1
 
-    # Check answer words
     user_words = clean_and_filter(content)
     answer_words = clean_and_filter(current_riddle["answer"])
-    
+
     if any(word in user_words for word in answer_words):
-        # Correct
         correct_users.add(user_id)
         await db.increment_score(user_id)
         await db.increment_streak(user_id)
 
-        # Get updated values to show in embed
         new_score = await db.get_score(user_id)
 
         try:
@@ -194,12 +206,10 @@ async def on_message(message):
         )
         await message.channel.send(embed=correct_guess_embed)
     else:
-        # Wrong
         remaining = 5 - guess_attempts.get(user_id, 0)
         if remaining == 0 and user_id not in deducted_for_user:
-            # Penalty on 5th wrong guess
-            await db.decrement_score(user_id)     # Implement in db.py
-            await db.reset_streak(user_id)        # Implement in db.py
+            await db.decrement_score(user_id)
+            await db.reset_streak(user_id)
             deducted_for_user.add(user_id)
             await message.channel.send(
                 f"❌ Incorrect, {message.author.mention}. You've used all guesses and lost 1 point.",
@@ -215,7 +225,6 @@ async def on_message(message):
         except:
             pass
 
-    # Send countdown until reveal
     now_utc = datetime.now(timezone.utc)
     reveal_dt = datetime.combine(now_utc.date(), time(23, 0), tzinfo=timezone.utc)
     if now_utc >= reveal_dt:
@@ -228,8 +237,6 @@ async def on_message(message):
         f"{minutes} minute{'s' if minutes != 1 else ''}."
     )
     await message.channel.send(countdown_msg, delete_after=12)
-
-
 @client.event
 async def on_command_error(interaction: discord.Interaction, error):
     if isinstance(error, app_commands.errors.MissingPermissions):
@@ -321,9 +328,6 @@ async def daily_riddle_post():
         await channel.send(embed=embed)
         print(f"INFO: Posted daily riddle #{riddle['id']} to channel {channel.name} ({channel_id})")
 
-        print(f"INFO: Posted daily riddle #{riddle['id']} to channel {channel.name} ({channel_id})")
-
-        # Mark this riddle as posted so it is not reused
         print(f"[ACQUIRE ATTEMPT] db.db_pool right before acquire: {db.db_pool} (type={type(db.db_pool)})")
         if db.db_pool is None:
             print("[ACQUIRE ERROR] db.db_pool is None right before acquire!")
@@ -334,7 +338,6 @@ async def daily_riddle_post():
                 riddle["id"]
             )
         print(f"DEBUG: Marked riddle #{riddle['id']} as posted in DB")
-
 
     except Exception as e:
         print(f"ERROR in daily_riddle_post loop: {e}")
@@ -347,7 +350,7 @@ async def reveal_riddle_answer():
     try:
         if not current_riddle or current_answer_revealed:
             print("DEBUG: No active riddle or answer already revealed. Skipping reveal.")
-            return  # Nothing to reveal
+            return
 
         channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
         channel = client.get_channel(channel_id)
@@ -358,7 +361,6 @@ async def reveal_riddle_answer():
         answer = current_riddle.get("answer", "Unknown")
         riddle_id = current_riddle.get("id", "???")
 
-        # Post the answer embed
         embed = discord.Embed(
             title=f"🔔 Answer to Riddle #{riddle_id}",
             description=f"**Answer:** {answer}\n\n💡 Use `/submitriddle` to submit your own riddle!",
@@ -366,9 +368,8 @@ async def reveal_riddle_answer():
         )
         await channel.send(embed=embed)
 
-        # Post congratulations if any correct users
         if correct_users:
-            all_scores = await db.get_all_scores()  # Must return dict {user_id_str: score}
+            all_scores = await db.get_all_scores()
             max_score = max(all_scores.values()) if all_scores else 0
 
             congrats_embed = discord.Embed(
@@ -395,7 +396,6 @@ async def reveal_riddle_answer():
                     description_lines.append(f"    • Streak: {streak_line}")
                     description_lines.append("")
                 except Exception:
-                    # Fallback mention if user fetch fails
                     description_lines.append(f"#{idx} <@{user_id_str}>")
                     description_lines.append("")
 
@@ -406,8 +406,7 @@ async def reveal_riddle_answer():
 
         submitter_id = current_riddle.get("submitter_id")
 
-        # Reset streaks for users who didn't guess and are not submitter
-        all_streak_users = await db.get_all_streak_users()  # Return list of user_id strings
+        all_streak_users = await db.get_all_streak_users()
         for user_id_str in all_streak_users:
             if user_id_str in correct_users:
                 continue
@@ -416,7 +415,6 @@ async def reveal_riddle_answer():
             if user_id_str not in guess_attempts:
                 await db.reset_streak(user_id_str)
 
-        # Reset global state
         current_answer_revealed = True
         current_riddle = None
         correct_users.clear()
@@ -470,7 +468,7 @@ async def daily_riddle_post_callback():
 async def on_ready():
     print(f"Logged in as {client.user} (ID: {client.user.id})")
 
-    commands.setup(tree, client)  # setup commands after login
+    commands.setup(tree, client)
     try:
         synced = await tree.sync()
         print(f"Synced {len(synced)} commands.")
@@ -495,8 +493,8 @@ async def run_bot():
 
     try:
         print("⏳ Connecting to the database...")
-        pool = await db.create_db_pool()  # This sets db.db_pool internally
-        commands.set_db_pool(pool)         # This sets commands.db_pool for commands.py usage
+        pool = await db.create_db_pool()  # sets db.db_pool internally
+        commands.set_db_pool(pool)         # sets commands.db_pool for commands.py usage
         print("✅ Database connection pool created successfully.")
     except Exception as e:
         print(f"❌ Failed to connect to the database: {e}")
@@ -505,7 +503,4 @@ async def run_bot():
     await client.start(TOKEN)
 
 
-# Force run, even when __name__ != "__main__"
 asyncio.run(run_bot())
-
-
