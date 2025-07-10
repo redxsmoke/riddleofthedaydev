@@ -5,6 +5,7 @@ import os
 import asyncio
 import traceback
 from db import get_user, insert_submitted_question  # import from db, NOT db_pool
+from views import LeaderboardView
 
 # THIS is crucial: store your own copy of db_pool here and allow it to be set
 db_pool = None
