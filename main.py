@@ -486,13 +486,9 @@ async def daily_riddle_post_callback():
 
 @client.event
 async def on_ready():
-    global db_pool
     if hasattr(client, "initialized") and client.initialized:
         return
     client.initialized = True
-
-    db_pool = await create_db_pool()
-    set_db_pool(db_pool)
 
     maybe_coro = setup(tree, client)
     if asyncio.iscoroutine(maybe_coro):
@@ -509,6 +505,7 @@ async def on_ready():
     daily_riddle_post.start()
     reveal_riddle_answer.start()
 
+
 if __name__ == "__main__":
     TOKEN = os.getenv("DISCORD_BOT_TOKEN")
     DB_URL = os.getenv("DATABASE_URL")
@@ -518,8 +515,17 @@ if __name__ == "__main__":
         exit(1)
 
     async def startup():
-        pool = await asyncpg.create_pool(DB_URL)
-        set_db_pool(pool)
+        try:
+            print("⏳ Connecting to the database...")
+            pool = await asyncpg.create_pool(DB_URL)
+            set_db_pool(pool)
+            print("✅ Database connection pool created successfully.")
+        except Exception as e:
+            print(f"❌ Failed to connect to the database: {e}")
+            exit(1)
+
         await client.start(TOKEN)
 
     asyncio.run(startup())
+)
+
