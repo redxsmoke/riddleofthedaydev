@@ -19,7 +19,6 @@ import db
 from commands import setup, set_db_pool  # make sure setup is exported
 
 
-
 # Only one intents declaration (fixed duplicate)
 intents = discord.Intents.default()
 intents.members = True
@@ -30,14 +29,12 @@ tree = app_commands.CommandTree(client)
 
 # Constants for file names
 QUESTIONS_FILE = "submitted_questions.json"
-SCORES_FILE = "scores.json"
-STREAKS_FILE = "streaks.json"
-SUBMISSION_DATES_FILE = "submission_dates.json"
+# SCORES_FILE, STREAKS_FILE, SUBMISSION_DATES_FILE and JSON score/streak variables removed
+
 
 # Global state containers
 submitted_questions = []    # List of dicts with riddles, each with id, question, answer, submitter_id
-scores = {}                 # user_id (str) -> int score
-streaks = {}                # user_id (str) -> int streak count
+# scores, streaks, submission_dates, used_question_ids, max_id remain as needed for riddles
 submission_dates = {}       # user_id (str) -> str date (YYYY-MM-DD) for tracking submissions
 used_question_ids = set()   # Set of str IDs used recently
 
@@ -77,12 +74,10 @@ def save_json(filename, data):
 
 # Load all persistent data on bot start
 def load_all_data():
-    global submitted_questions, scores, streaks, submission_dates, max_id
+    global submitted_questions, max_id
 
-    submitted_questions = load_json(QUESTIONS_FILE)
-    scores = load_json(SCORES_FILE)
-    streaks = load_json(STREAKS_FILE)
-    submission_dates = load_json(SUBMISSION_DATES_FILE)
+    # Load riddles from JSON only; scores/streaks no longer loaded here
+    submitted_questions[:] = load_json(QUESTIONS_FILE)
 
     # Determine max ID for new riddle submissions
     existing_ids = []
@@ -91,17 +86,6 @@ def load_all_data():
             existing_ids.append(int(q["id"]))
     max_id = max(existing_ids) if existing_ids else 0
 
-# Save all score and streak data
-def save_all_scores():
-    save_json(SCORES_FILE, scores)
-    save_json(STREAKS_FILE, streaks)
-    save_json(SUBMISSION_DATES_FILE, submission_dates)
-
-# Save all riddles/questions
-def save_all_riddles():
-    save_json(QUESTIONS_FILE, submitted_questions)
-
-# Call load on startup
 load_all_data()
 
 def get_next_id():
@@ -154,30 +138,31 @@ def format_question_embed(qdict, submitter=None):
 
 def get_rank(score, streak=0):
     # Example rank calculation, customize as needed
-    if scores:
-        max_score = max(scores.values())
-        if score == max_score and max_score > 0:
-            return "🍣 Master Sushi Chef (Top scorer)"
-    if streak >= 30:
-        return "💚🔥 Wasabi Warlord (30+ day streak)"
-    elif streak >= 20:
-        return "🥢 Rollmaster Ronin (20+ day streak)"
-    elif streak >= 10:
-        return "🍣 Nigiri Ninja (10+ day streak)"
-    elif streak >= 5:
-        return "🍤 Tempura Titan (5+ day streak)"
-    elif streak >= 3:
-        return "🔥 Streak Samurai (3+ day streak)"
-    if score <= 5:
-        return "Sushi Newbie 🍽️"
-    elif 6 <= score <= 15:
-        return "Maki Novice 🍣"
-    elif 16 <= score <= 25:
-        return "Sashimi Skilled 🍤"
-    elif 26 <= score <= 50:
-        return "Brainy Botan 🧠"
+    # scores is no longer global, so only use parameters
+    if score > 0:
+        # Master Sushi Chef only if top score - can only do this externally now, so keep rank logic simple here
+        if streak >= 30:
+            return "💚🔥 Wasabi Warlord (30+ day streak)"
+        elif streak >= 20:
+            return "🥢 Rollmaster Ronin (20+ day streak)"
+        elif streak >= 10:
+            return "🍣 Nigiri Ninja (10+ day streak)"
+        elif streak >= 5:
+            return "🍤 Tempura Titan (5+ day streak)"
+        elif streak >= 3:
+            return "🔥 Streak Samurai (3+ day streak)"
+        if score <= 5:
+            return "Sushi Newbie 🍽️"
+        elif 6 <= score <= 15:
+            return "Maki Novice 🍣"
+        elif 16 <= score <= 25:
+            return "Sashimi Skilled 🍤"
+        elif 26 <= score <= 50:
+            return "Brainy Botan 🧠"
+        else:
+            return "Sushi Einstein 🧪"
     else:
-        return "Sushi Einstein 🧪"
+        return "Sushi Newbie 🍽️"
 
 @client.event
 async def on_message(message):
@@ -247,16 +232,20 @@ async def on_message(message):
     if any(word in user_words for word in answer_words):
         # Correct
         correct_users.add(user_id)
-        scores[user_id] = scores.get(user_id, 0) + 1
-        streaks[user_id] = streaks.get(user_id, 0) + 1
-        save_all_scores()
+        await db.increment_score(user_id)
+        await db.increment_streak(user_id)
+
+        # Get updated values to show in embed
+        new_score = await db.get_score(user_id)
+
         try:
             await message.delete()
         except:
             pass
+
         correct_guess_embed = discord.Embed(
             title="You guess correctly!",
-            description=f"🥳 Correct, {message.author.mention}! Your total score: {scores[user_id]}",
+            description=f"🥳 Correct, {message.author.mention}! Your total score: {new_score}",
             color=discord.Color.green()
         )
         await message.channel.send(embed=correct_guess_embed)
@@ -265,10 +254,9 @@ async def on_message(message):
         remaining = 5 - guess_attempts.get(user_id, 0)
         if remaining == 0 and user_id not in deducted_for_user:
             # Penalty on 5th wrong guess
-            scores[user_id] = max(0, scores.get(user_id, 0) - 1)
-            streaks[user_id] = 0
+            await db.decrement_score(user_id)     # Implement in db.py
+            await db.reset_streak(user_id)        # Implement in db.py
             deducted_for_user.add(user_id)
-            save_all_scores()
             await message.channel.send(
                 f"❌ Incorrect, {message.author.mention}. You've used all guesses and lost 1 point.",
                 delete_after=8
@@ -389,7 +377,10 @@ async def reveal_riddle_answer():
 
     # Post congratulations
     if correct_users:
-        max_score = max(scores.values()) if scores else 0
+        # Get all user scores from DB for max calculation
+        all_scores = await db.get_all_scores()  # You must implement this in db.py returning {user_id: score}
+        max_score = max(all_scores.values()) if all_scores else 0
+
         congrats_embed = discord.Embed(
             title="🎊 Congratulations to the following users who solved today's riddle! 🎊",
             color=discord.Color.gold()
@@ -398,8 +389,8 @@ async def reveal_riddle_answer():
         for idx, user_id_str in enumerate(correct_users, start=1):
             try:
                 user = await client.fetch_user(int(user_id_str))
-                score_val = scores.get(user_id_str, 0)
-                streak_val = streaks.get(user_id_str, 0)
+                score_val = all_scores.get(user_id_str, 0)
+                streak_val = await db.get_streak(user_id_str)
 
                 score_line = f"{score_val}"
                 if score_val == max_score and max_score > 0:
@@ -407,9 +398,6 @@ async def reveal_riddle_answer():
 
                 rank = get_rank(score_val, streak_val)
                 streak_line = f"🔥{streak_val}"
-                # streak_rank = get_streak_rank(streak_val) # Looks like get_streak_rank missing, so omitted here
-                # if streak_rank:
-                #    streak_line += f" - {streak_rank}"
 
                 description_lines.append(f"#{idx} {user.display_name}:")
                 description_lines.append(f"    • Score: {score_line}")
@@ -427,7 +415,8 @@ async def reveal_riddle_answer():
     # ✅ Streak reset for users who did not guess and are not the submitter
     submitter_id = current_riddle.get("submitter_id")
 
-    for user_id_str in list(streaks.keys()):
+    all_streak_users = await db.get_all_streak_users()  # Implement in db.py returning list of user_ids with streaks
+    for user_id_str in all_streak_users:
         # Skip users who got it correct
         if user_id_str in correct_users:
             continue
@@ -438,9 +427,7 @@ async def reveal_riddle_answer():
 
         # If the user made 0 attempts, reset their streak
         if user_id_str not in guess_attempts:
-            streaks[user_id_str] = 0
-
-    save_all_scores()
+            await db.reset_streak(user_id_str)
 
     # ✅ Reset state
     current_answer_revealed = True
@@ -493,40 +480,25 @@ async def on_ready():
     
     commands.setup(tree, client)   # setup commands after login
     try:
-        synced = await tree.sync()  # sync commands after client ready
+        synced = await tree.sync()  # sync commands with Discord
         print(f"Synced {len(synced)} commands.")
     except Exception as e:
         print(f"Failed to sync commands: {e}")
 
-    if not riddle_announcement.is_running():
-        riddle_announcement.start()
-    if not daily_riddle_post.is_running():
-        daily_riddle_post.start()
-    if not reveal_riddle_answer.is_running():
-        reveal_riddle_answer.start()
+    # Start task loops
+    riddle_announcement.start()
+    daily_riddle_post.start()
+    reveal_riddle_answer.start()
 
+async def main():
+    await create_db_pool()  # initialize DB pool for db.py
 
-async def startup():
-    TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-    DB_URL = os.getenv("DATABASE_URL")
+    token = os.getenv("DISCORD_TOKEN")
+    if not token:
+        print("⚠️ DISCORD_TOKEN env var missing!")
+        return
 
-    if not TOKEN or not DB_URL:
-        print("ERROR: Required environment variables are not set.")
-        exit(1)
-
-    try:
-        print("⏳ Connecting to the database...")
-        pool = await db.create_db_pool()
-        commands.set_db_pool(pool)
-        print("✅ Database connection pool created successfully.")
-
-  
-    except Exception as e:
-        print(f"❌ Failed to connect to the database or sync commands: {e}")
-        exit(1)
-
-    await client.start(TOKEN)
+    await client.start(token)
 
 if __name__ == "__main__":
-    asyncio.run(startup())
-
+    asyncio.run(main())
