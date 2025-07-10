@@ -190,25 +190,30 @@ async def on_message(message):
             color=discord.Color.green()
         )
         await message.channel.send(embed=correct_guess_embed)
-    else:
-        remaining = 5 - guess_attempts.get(user_id, 0)
-        if remaining == 0 and user_id not in deducted_for_user:
-            await db.decrement_score(user_id)
-            await db.reset_streak(user_id)
-            deducted_for_user.add(user_id)
-            await message.channel.send(
-                f"❌ Incorrect, {message.author.mention}. You've used all guesses and lost 1 point.",
-                delete_after=8
-            )
-        elif remaining > 0:
-            await message.channel.send(
-                f"❌ Incorrect, {message.author.mention}. {remaining} guess(es) left.",
-                delete_after=6
-            )
-        try:
-            await message.delete()
-        except:
-            pass
+        
+        # <--- **IMPORTANT:** Return here to stop further processing!
+        return
+
+    # This code only runs if guess was wrong
+    remaining = 5 - guess_attempts.get(user_id, 0)
+    if remaining == 0 and user_id not in deducted_for_user:
+        await db.decrement_score(user_id)
+        await db.reset_streak(user_id)
+        deducted_for_user.add(user_id)
+        await message.channel.send(
+            f"❌ Incorrect, {message.author.mention}. You've used all guesses and lost 1 point.",
+            delete_after=8
+        )
+    elif remaining > 0:
+        await message.channel.send(
+            f"❌ Incorrect, {message.author.mention}. {remaining} guess(es) left.",
+            delete_after=6
+        )
+    try:
+        await message.delete()
+    except:
+        pass
+
 
     now_utc = datetime.now(timezone.utc)
     reveal_dt = datetime.combine(now_utc.date(), time(23, 0), tzinfo=timezone.utc)
