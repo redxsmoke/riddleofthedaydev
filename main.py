@@ -486,8 +486,10 @@ async def on_message(message):
         user_words = clean_and_filter(content)
         answer_words = clean_and_filter(current_riddle["answer"])
         if any(word in answer_words for word in user_words):
-            try: await message.delete()
-            except: pass
+            try:
+                await message.delete()
+            except:
+                pass
             await message.channel.send(
                 "⛔ You submitted this riddle and cannot answer it.",
                 delete_after=10
@@ -496,10 +498,12 @@ async def on_message(message):
 
     # Already answered correctly
     if user_id in correct_users:
-        try: await message.delete()
-        except: pass
+        try:
+            await message.delete()
+        except:
+            pass
         await message.channel.send(
-            f"✅ You already answered correctly, {message.author.mention}.",
+            f"✅ You already answered correctly, {message.author.mention}. No more guesses counted.",
             delete_after=5
         )
         return
@@ -512,6 +516,9 @@ async def on_message(message):
     answer_words = clean_and_filter(current_riddle["answer"])
 
     if any(word in user_words for word in answer_words):
+        # Mark correct BEFORE sending message
+        correct_users.add(user_id)
+
         try:
             await message.delete()
         except:
@@ -521,17 +528,13 @@ async def on_message(message):
         await db.increment_streak(user_id)
         score = await db.get_score(user_id)
 
-        # ✅ Moved this line AFTER the embed is sent
         embed = discord.Embed(
             title="🎉 You guessed it!",
             description=f"🥳 Nice job {message.author.mention}, your total score is now **{score}**!",
             color=discord.Color.green()
         )
         await message.channel.send(embed=embed)
-
-        correct_users.add(user_id)  # 👈 Moved here
         return
-
 
     # Incorrect guess logic
     remaining = 5 - attempts
@@ -549,8 +552,10 @@ async def on_message(message):
             delete_after=6
         )
 
-    try: await message.delete()
-    except: pass
+    try:
+        await message.delete()
+    except:
+        pass
 
     # Countdown to answer reveal
     now = datetime.now(timezone.utc)
@@ -563,7 +568,6 @@ async def on_message(message):
         f"⏳ Answer will be revealed in {h} hour(s), {m} minute(s).",
         delete_after=10
     )
-
 
 
 
