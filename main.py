@@ -128,11 +128,20 @@ async def on_message(message):
         answer_words = clean_and_filter(current_riddle["answer"])
         print(f"SENDING CONGRATS TO {message.author.display_name}")
         if any(word in answer_words for word in user_words):
+            print("[DEBUG] Correct guess detected.")
+            try:
+                await message.delete()
+                print("[DEBUG] Deleted user message")
+            except Exception as e:
+                print(f"[ERROR] Failed to delete: {e}")
+
             correct_users.add(user_id)
+            print("[DEBUG] Added to correct_users")
 
             await db.increment_score(user_id)
             await db.increment_streak(user_id)
             score = await db.get_score(user_id)
+            print(f"[DEBUG] Score incremented. New score: {score}")
 
             embed = discord.Embed(
                 title="🎉 You guessed it!",
@@ -140,12 +149,7 @@ async def on_message(message):
                 color=discord.Color.green()
             )
             await message.channel.send(embed=embed)
-
-            # 🛠️ Delete *after* sending everything
-            try:
-                await message.delete()
-            except:
-                pass
+            print("[DEBUG] Sent congrats embed")
 
             return
 
