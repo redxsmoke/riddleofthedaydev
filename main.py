@@ -459,10 +459,10 @@ async def daily_riddle_post_callback():
 @client.event
 async def on_ready():
     print(f"Logged in as {client.user} (ID: {client.user.id})")
-    
-    commands.setup(tree, client)   # setup commands after login
+
+    commands.setup(tree, client)  # setup commands after login
     try:
-        synced = await tree.sync()  # sync commands after client ready
+        synced = await tree.sync()
         print(f"Synced {len(synced)} commands.")
     except Exception as e:
         print(f"Failed to sync commands: {e}")
@@ -475,7 +475,7 @@ async def on_ready():
         reveal_riddle_answer.start()
 
 
-async def startup():
+async def run_bot():
     TOKEN = os.getenv("DISCORD_BOT_TOKEN")
     DB_URL = os.getenv("DATABASE_URL")
 
@@ -486,16 +486,18 @@ async def startup():
     try:
         print("⏳ Connecting to the database...")
         pool = await db.create_db_pool()
-        db.db_pool = pool  
+        db.db_pool = pool  # ✅ THIS IS WHAT WAS MISSING
         commands.set_db_pool(pool)
         print("✅ Database connection pool created successfully.")
-
-  
     except Exception as e:
-        print(f"❌ Failed to connect to the database or sync commands: {e}")
+        print(f"❌ Failed to connect to the database: {e}")
         exit(1)
 
     await client.start(TOKEN)
 
-if __name__ == "__main__":
-    asyncio.run(startup())
+
+# Force run, even when __name__ != "__main__"
+asyncio.run(run_bot())
+
+
+
