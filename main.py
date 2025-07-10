@@ -329,7 +329,7 @@ async def daily_riddle_post():
 
 
 
-@tasks.loop(seconds=90)
+@tasks.loop(seconds=3600)
 async def reveal_riddle_answer():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -584,10 +584,10 @@ async def on_ready():
 
     if not riddle_announcement.is_running():
         riddle_announcement.start()
-    #if not daily_riddle_post.is_running():
-     #   daily_riddle_post.start()
-    #if not reveal_riddle_answer.is_running():
-    #    reveal_riddle_answer.start()
+    if not daily_riddle_post.is_running():
+        daily_riddle_post.start()
+    if not reveal_riddle_answer.is_running():
+        reveal_riddle_answer.start()
     if not daily_purge.is_running():
         daily_purge.start()
 

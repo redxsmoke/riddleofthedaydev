@@ -502,46 +502,8 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         await interaction.followup.send(f"🧹 Purged {len(deleted)} messages.", ephemeral=True)
         print(f"[purge] Purged {len(deleted)} messages")
  
-
-@tree.command(name="testriddle", description="Post a random riddle once for testing")
-async def test_riddle(interaction: Interaction):
-    await interaction.response.defer(ephemeral=True)
-
-    global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
-
-    if current_riddle is not None:
-        await interaction.followup.send("⛔ There is already an active riddle.", ephemeral=True)
-        return
-
-    riddles = await get_unused_questions()
-    if not riddles:
-        await interaction.followup.send("⚠️ No riddles available to post.", ephemeral=True)
-        return
-
-    riddle = random.choice(riddles)
-    current_riddle = riddle
-    current_answer_revealed = False
-    correct_users = set()
-    guess_attempts = {}
-    deducted_for_user = set()
-
-    submitter = None
-    if riddle.get("user_id"):
-        submitter = client.get_user(int(riddle["user_id"]))
-
-    embed = await format_question_embed(riddle, submitter)
-
-    channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
-    channel = client.get_channel(channel_id)
-    if not channel:
-        await interaction.followup.send("❌ Riddle channel not found.", ephemeral=True)
-        return
-
-    await channel.send(embed=embed)
-    await interaction.followup.send(f"✅ Riddle #{riddle['riddle_id']} posted in {channel.mention}.", ephemeral=True)
-
-
-
+ 
+ 
 # A top-level helper function for updating score and streak
 async def update_user_score_and_streak(user_id: int, add_score=0, add_streak=0):
     async with db_pool.acquire() as conn:
