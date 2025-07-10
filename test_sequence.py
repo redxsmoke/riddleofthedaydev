@@ -42,7 +42,7 @@ async def run_test_sequence(interaction, client):
         "id": 9999,
         "question": "What has keys but can't open locks?",
         "answer": "piano",
-        "submitter_id": None,
+        "user_id": None,
     }
     current_answer_revealed = False
     correct_users = set()

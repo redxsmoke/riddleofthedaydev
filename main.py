@@ -49,7 +49,7 @@ async def count_unused_questions():
 async def get_unused_questions():
     async with db.db_pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT riddle_id, question, answer, submitter_id FROM user_submitted_questions WHERE posted_at IS NULL"
+            "SELECT riddle_id, question, answer, user_id FROM user_submitted_questions WHERE posted_at IS NULL"
         )
         return [dict(row) for row in rows]
 
@@ -122,7 +122,7 @@ async def on_message(message):
     if not current_riddle or current_answer_revealed:
         return
 
-    if current_riddle.get("submitter_id") == user_id:
+    if current_riddle.get("user_id") == user_id:
         user_words = clean_and_filter(content)
         answer_words = clean_and_filter(current_riddle["answer"])
 
@@ -288,13 +288,13 @@ async def daily_riddle_post():
         guess_attempts = {}
         deducted_for_user = set()
         submitter_name = "Anonymous"
-        if riddle.get("submitter_id"):
-            user = client.get_user(int(riddle["submitter_id"]))
+        if riddle.get("user_id"):
+            user = client.get_user(int(riddle["user_id"]))
             if user:
                 submitter_name = user.display_name
-            print(f"DEBUG: Riddle submitted by user ID {riddle['submitter_id']} ({submitter_name})")
+            print(f"DEBUG: Riddle submitted by user ID {riddle['user_id']} ({submitter_name})")
         else:
-            print("DEBUG: Riddle has no submitter_id")
+            print("DEBUG: Riddle has no user_id")
 
         embed = discord.Embed(
             title=f"🧩 Riddle of the Day #{riddle['riddle_id']}",
@@ -380,13 +380,13 @@ async def reveal_riddle_answer():
         else:
             await channel.send("😢 No one guessed the riddle correctly today.")
 
-        submitter_id = current_riddle.get("submitter_id")
+        user_id = current_riddle.get("user_id_id")
 
         all_streak_users = await db.get_all_streak_users()
         for user_id_str in all_streak_users:
             if user_id_str in correct_users:
                 continue
-            if submitter_id and user_id_str == str(submitter_id):
+            if user_id and user_id_str == str(user_id):
                 continue
             if user_id_str not in guess_attempts:
                 await db.reset_streak(user_id_str)
@@ -426,8 +426,8 @@ async def daily_riddle_post_callback():
     deducted_for_user = set()
 
     submitter_name = "Riddle of the day bot"
-    if riddle.get("submitter_id"):
-        user = client.get_user(int(riddle["submitter_id"]))
+    if riddle.get("user_id"):
+        user = client.get_user(int(riddle["user_id"]))
         if user:
             submitter_name = user.display_name
 
