@@ -132,7 +132,7 @@ async def on_message(message):
         return
 
 
-
+#
     # Already answered correctly
     from discord import Embed
 
