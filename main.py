@@ -517,8 +517,7 @@ if __name__ == "__main__":
     async def startup():
         try:
             print("⏳ Connecting to the database...")
-            pool = await asyncpg.create_pool(DB_URL)
-            set_db_pool(pool)
+            await db.create_db_pool()  # <-- create the global pool here
             print("✅ Database connection pool created successfully.")
         except Exception as e:
             print(f"❌ Failed to connect to the database: {e}")
