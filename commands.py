@@ -130,35 +130,7 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         except Exception as e:
             print(f"[myranks] ERROR sending embed: {e}")
 
-
-        score_val = row["score"] if row else 0
-        streak_val = row["streak"] if row else 0
-
-        rank = get_rank(score_val)
-        streak_rank = get_streak_rank(streak_val)
-
-        embed = Embed(
-            title=f"📊 Your Riddle Stats, {interaction.user.display_name}",
-            color=discord.Color.green()
-        )
-
-        score_text = f"Score: {score_val} {'🍣' if score_val > 0 else ''}"
-        streak_text = f"Streak: 🔥{streak_val}"
-        if streak_rank:
-            streak_text += f" — {streak_rank}"
-
-        embed.add_field(name="Score", value=score_text, inline=False)
-        embed.add_field(name="Streak", value=streak_text, inline=False)
-        embed.add_field(name="Rank", value=rank or "No rank", inline=False)
-
-        try:
-            await interaction.followup.send(embed=embed, ephemeral=True)
-            print("[myranks] Embed sent successfully")
-        except Exception as e:
-            print(f"[myranks] ERROR sending embed: {e}")
-
- 
- 
+     
 
     @tree.command(name="submitriddle", description="Submit a new riddle for the daily contest")
     @app_commands.describe(question="The riddle question", answer="The answer to the riddle")

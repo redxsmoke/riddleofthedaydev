@@ -4,7 +4,6 @@ from discord.ext import tasks
 from discord import Interaction, Embed
 from discord.ui import View, Button
 import commands
-import json
 import os
 import re
 import random
@@ -27,82 +26,9 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-# Constants for file names
-QUESTIONS_FILE = "submitted_questions.json"
-# SCORES_FILE, STREAKS_FILE, SUBMISSION_DATES_FILE and JSON score/streak variables removed
+ 
 
 
-# Global state containers
-submitted_questions = []    # List of dicts with riddles, each with id, question, answer, submitter_id
-# scores, streaks, submission_dates, used_question_ids, max_id remain as needed for riddles
-submission_dates = {}       # user_id (str) -> str date (YYYY-MM-DD) for tracking submissions
-used_question_ids = set()   # Set of str IDs used recently
-
-current_riddle = None       # Currently active riddle dict or None
-current_answer_revealed = False
-correct_users = set()       # user_ids who guessed right this round
-guess_attempts = {}         # user_id -> int attempts count for current riddle
-deducted_for_user = set()   # user_ids deducted penalty for wrong guess in current riddle
-
-max_id = 0                  # For generating new IDs (incremental)
-
-# Utility: Clamp value to zero minimum
-def clamp_min_zero(value):
-    return max(0, value)
-
-# Load JSON file or return default empty data
-def load_json(filename):
-    if os.path.exists(filename):
-        try:
-            with open(filename, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            print(f"Error loading {filename}: {e}")
-    # Return defaults
-    if filename == QUESTIONS_FILE:
-        return []
-    else:
-        return {}
-
-# Save data to JSON file
-def save_json(filename, data):
-    try:
-        with open(filename, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
-    except Exception as e:
-        print(f"Error saving {filename}: {e}")
-
-# Load all persistent data on bot start
-def load_all_data():
-    global submitted_questions, max_id
-
-    # Load riddles from JSON only; scores/streaks no longer loaded here
-    submitted_questions[:] = load_json(QUESTIONS_FILE)
-
-    # Determine max ID for new riddle submissions
-    existing_ids = []
-    for q in submitted_questions:
-        if "id" in q and str(q["id"]).isdigit():
-            existing_ids.append(int(q["id"]))
-    max_id = max(existing_ids) if existing_ids else 0
-
-load_all_data()
-
-def get_next_id():
-    global max_id
-    max_id += 1
-    return str(max_id)
-
-def pick_next_riddle():
-    unused = [q for q in submitted_questions if str(q.get("id")) not in used_question_ids and q.get("id") is not None]
-    if not unused:
-        used_question_ids.clear()
-        unused = [q for q in submitted_questions if q.get("id") is not None]
-    if not unused:
-        return None
-    riddle = random.choice(unused)
-    used_question_ids.add(str(riddle["id"]))
-    return riddle
 
 STOP_WORDS = {"a", "an", "the", "is", "was", "were", "of", "to", "and", "in", "on", "at", "by"}
 
@@ -110,8 +36,8 @@ def clean_and_filter(text):
     words = re.findall(r'\b\w+\b', text.lower())
     return [w for w in words if w not in STOP_WORDS]
 
-def count_unused_questions():
-    return len([q for q in submitted_questions if str(q.get("id")) not in used_question_ids])
+
+
 
 def format_question_embed(qdict, submitter=None):
     embed = discord.Embed(

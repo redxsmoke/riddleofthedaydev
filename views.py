@@ -1,11 +1,7 @@
 from discord import app_commands, Interaction, Embed
 from discord.ui import View, Button
 import discord
-import db  # your DB helper module with async functions to get scores, streaks, riddles, etc.
-
-# Removed JSON dicts: scores, streaks
-
-# Helper async functions to fetch data from DB instead of JSON dicts
+import db  
 
 async def get_score(user_id: str) -> int:
     return await db.get_score(user_id) or 0
@@ -210,3 +206,26 @@ class ListRiddlesView(View):
             )
 
         return embed
+
+async def format_question_embed_db(qdict, submitter=None):
+    embed = discord.Embed(
+        title=f"🧠 Riddle #{qdict['id']}",
+        description=qdict['question'],
+        color=discord.Color.blurple()
+    )
+    embed.set_footer(text="Answer will be revealed at 23:00 UTC. Use /submitriddle to contribute your own!")
+
+    remaining = await count_unused_questions_db()
+    if remaining < 5:
+        embed.add_field(
+            name="⚠️ Riddle Supply Low",
+            value="Less than 5 new riddles remain - submit one with `/submitriddle`!",
+            inline=False
+        )
+    if submitter:
+        embed.add_field(
+            name="Submitted By",
+            value=submitter.mention,
+            inline=False
+        )
+    return embed
