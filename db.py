@@ -13,6 +13,8 @@ async def create_db_pool():
     else:
         print("⚠️ Database pool already initialized.")
 
+        
+
 async def upsert_user(user_id: int, score: int, streak: int):
     if db_pool is None:
         raise RuntimeError("DB pool is not initialized. Call create_db_pool() first.")
