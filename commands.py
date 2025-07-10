@@ -3,12 +3,11 @@ from discord import app_commands, Embed, Interaction
 from discord.ui import View, Button
 import os
 import asyncio
-import traceback 
-from db import get_user, insert_submitted_question, db_pool
+import traceback
+
+from db import get_user, insert_submitted_question  # remove db_pool import here
 from views import ListRiddlesView, LeaderboardView
 
- 
- 
 # You need to create your client first
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
