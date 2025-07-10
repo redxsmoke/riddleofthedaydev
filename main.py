@@ -488,27 +488,13 @@ async def daily_riddle_post_callback():
 
 @client.event
 async def on_ready():
-    if hasattr(client, "initialized") and client.initialized:
-        return
-    client.initialized = True
-
-    maybe_coro = setup(tree, client)
-    if asyncio.iscoroutine(maybe_coro):
-        await maybe_coro
-
-    print(f"Bot logged in as {client.user} (ID: {client.user.id})")
-    try:
-        synced = await tree.sync()
-        print(f"Synced {len(synced)} commands.")
-    except Exception as e:
-        print(f"Failed to sync commands: {e}")
-
+    print(f"Logged in as {client.user} (ID: {client.user.id})")
+    # Start any background tasks here
     riddle_announcement.start()
     daily_riddle_post.start()
     reveal_riddle_answer.start()
 
-
-if __name__ == "__main__":
+async def startup():
     TOKEN = os.getenv("DISCORD_BOT_TOKEN")
     DB_URL = os.getenv("DATABASE_URL")
 
@@ -516,17 +502,23 @@ if __name__ == "__main__":
         print("ERROR: Required environment variables are not set.")
         exit(1)
 
-    async def startup():
-        try:
-            print("⏳ Connecting to the database...")
-            await db.create_db_pool()  # <-- create the global pool here
-            print("✅ Database connection pool created successfully.")
-        except Exception as e:
-            print(f"❌ Failed to connect to the database: {e}")
-            exit(1)
+    try:
+        print("⏳ Connecting to the database...")
+        pool = await db.create_db_pool()
+        commands.set_db_pool(pool)
+        print("✅ Database connection pool created successfully.")
 
-        await client.start(TOKEN)
+        # Setup commands and sync once here
+        commands.setup(tree, client)
+        synced = await tree.sync()
+        print(f"Synced {len(synced)} commands.")
 
+    except Exception as e:
+        print(f"❌ Failed to connect to the database or sync commands: {e}")
+        exit(1)
+
+    await client.start(TOKEN)
+
+if __name__ == "__main__":
     asyncio.run(startup())
-
 

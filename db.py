@@ -12,8 +12,8 @@ async def create_db_pool():
         print("✅ Database connection pool created.")
     else:
         print("⚠️ Database pool already initialized.")
+    return db_pool
 
-        
 
 async def upsert_user(user_id: int, score: int, streak: int):
     if db_pool is None:

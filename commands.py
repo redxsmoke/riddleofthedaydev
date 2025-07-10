@@ -162,7 +162,6 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
     @app_commands.describe(question="The riddle question", answer="The answer to the riddle")
     async def submitriddle(interaction: discord.Interaction, question: str, answer: str):
         print("[submitriddle] Command invoked")
-
         question = question.strip()
         answer = answer.strip().lower()
         print(f"[submitriddle] Received question: '{question}' and answer: '{answer}'")
