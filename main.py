@@ -321,8 +321,10 @@ async def daily_riddle_post():
         await channel.send(embed=embed)
         print(f"INFO: Posted daily riddle #{riddle['id']} to channel {channel.name} ({channel_id})")
 
+        print(f"INFO: Posted daily riddle #{riddle['id']} to channel {channel.name} ({channel_id})")
+
         # Mark this riddle as posted so it is not reused
-        print(f"[ACQUIRE DEBUG] db.db_pool right before acquire: {db.db_pool} (type={type(db.db_pool)})")
+        print(f"[ACQUIRE ATTEMPT] db.db_pool right before acquire: {db.db_pool} (type={type(db.db_pool)})")
         if db.db_pool is None:
             print("[ACQUIRE ERROR] db.db_pool is None right before acquire!")
             return
@@ -331,8 +333,8 @@ async def daily_riddle_post():
                 "UPDATE user_submitted_questions SET posted_at = NOW() WHERE id = $1",
                 riddle["id"]
             )
-
         print(f"DEBUG: Marked riddle #{riddle['id']} as posted in DB")
+
 
     except Exception as e:
         print(f"ERROR in daily_riddle_post loop: {e}")
