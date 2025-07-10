@@ -1,5 +1,9 @@
-import asyncpg
+
 import os
+print(f"DEBUG: Loaded db.py from {os.path.abspath(__file__)}")
+
+import asyncpg
+ 
 
 db_pool = None  # Global pool variable
 
