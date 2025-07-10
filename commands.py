@@ -522,28 +522,28 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         await interaction.followup.send(f"Purged {len(deleted)} messages from {channel.mention}.", ephemeral=True)
 
 
-    # A top-level helper function for updating score and streak
-    async def update_user_score_and_streak(user_id: int, add_score=0, add_streak=0):
-        async with db_pool.acquire() as conn:
-            row = await conn.fetchrow("SELECT score, streak FROM users WHERE user_id=$1", user_id)
-            if row:
-                new_score = max(0, row["score"] + add_score)
-                new_streak = max(0, row["streak"] + add_streak)
-                await conn.execute(
-                    "UPDATE users SET score=$1, streak=$2 WHERE user_id=$3",
-                    new_score, new_streak, user_id
-                )
-            else:
-                new_score = max(0, add_score)
-                new_streak = max(0, add_streak)
-                await conn.execute(
-                    "INSERT INTO users (user_id, score, streak) VALUES ($1, $2, $3)",
-                    user_id, new_score, new_streak
-                )
-        return new_score, new_streak
+# A top-level helper function for updating score and streak
+async def update_user_score_and_streak(user_id: int, add_score=0, add_streak=0):
+    async with db_pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT score, streak FROM users WHERE user_id=$1", user_id)
+        if row:
+            new_score = max(0, row["score"] + add_score)
+            new_streak = max(0, row["streak"] + add_streak)
+            await conn.execute(
+                "UPDATE users SET score=$1, streak=$2 WHERE user_id=$3",
+                new_score, new_streak, user_id
+            )
+        else:
+            new_score = max(0, add_score)
+            new_streak = max(0, add_streak)
+            await conn.execute(
+                "INSERT INTO users (user_id, score, streak) VALUES ($1, $2, $3)",
+                user_id, new_score, new_streak
+            )
+    return new_score, new_streak
 
 
-    
-    setup_test_sequence_commands(tree, client)
-    
+
+setup_test_sequence_commands(tree, client)
+
 
