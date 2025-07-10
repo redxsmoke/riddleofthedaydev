@@ -277,9 +277,14 @@ async def daily_riddle_post():
         riddles = await get_unused_questions()
         print(f"DEBUG: Retrieved {len(riddles)} unused riddles from DB")
         if not riddles:
+            notify_user_id = int(os.getenv("NOTIFY_USER_ID") or 0)
             warn_embed = discord.Embed(
                 title="⚠️ No More Riddles Available",
-                description="There are currently no new riddles left to post. Please submit new riddles with `/submitriddle`! or yell @IzzyBan to add more",
+                description=(
+                    "There are currently no new riddles left to post. "
+                    "Please submit new riddles with `/submitriddle`! or yell "
+                    f"<@{notify_user_id}> to add more"
+                ),
                 color=discord.Color.red()
             )
             await channel.send(embed=warn_embed)
