@@ -410,7 +410,7 @@ async def reveal_riddle_answer():
         print(f"ERROR in reveal_riddle_answer loop: {e}")
 
 
-@tasks.loop(seconds=100)  # 
+@tasks.loop(time=time(hour=11, minute=50, second=0, tzinfo=timezone.utc))
 async def daily_purge():
     try:
         channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)  # or hardcode it
