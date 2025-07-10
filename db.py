@@ -71,5 +71,5 @@ async def count_unused_questions_db():
 
 async def get_all_streak_users():
     async with db_pool.acquire() as conn:
-        rows = await conn.fetch("SELECT user_id FROM user_stats WHERE streak > 0 OR score > 0")
+        rows = await conn.fetch("SELECT user_id FROM users WHERE streak > 0 OR score > 0")
         return [str(row["user_id"]) for row in rows]
