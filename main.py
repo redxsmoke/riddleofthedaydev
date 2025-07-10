@@ -126,7 +126,6 @@ async def on_message(message):
     if current_riddle.get("user_id") == user_id:
         user_words = clean_and_filter(content)
         answer_words = clean_and_filter(current_riddle["answer"])
-        # FIXED: consistent logic here and reject submitter's attempts instead of congratulating
         if any(word in user_words for word in answer_words):
             try:
                 await message.delete()
@@ -161,30 +160,43 @@ async def on_message(message):
             pass
 
         correct_users.add(user_id)  # Add user FIRST
+        print(f"[DEBUG] Added user {user_id} to correct_users")
 
-        await db.increment_score(user_id)
-        await db.increment_streak(user_id)
-        score = await db.get_score(user_id)
+        try:
+            await db.increment_score(user_id)
+            await db.increment_streak(user_id)
+            score = await db.get_score(user_id)
+            print(f"[DEBUG] User {user_id} score incremented to {score}")
+        except Exception as e:
+            print(f"[ERROR] DB error incrementing score/streak or getting score: {e}")
+            score = "unknown"
 
         embed = discord.Embed(
             title="🎉 You guessed it!",
-            description=f"🥳 Contrats {message.author.mention} you guessed right! Your total score is now **{score}**!",
+            description=f"🥳 Congrats {message.author.mention}, you guessed right! Your total score is now **{score}**!",
             color=discord.Color.green()
         )
-        await message.channel.send(embed=embed)
+        try:
+            await message.channel.send(embed=embed)
+            print("[DEBUG] Sent congrats embed")
+        except Exception as e:
+            print(f"[ERROR] Failed to send congrats embed: {e}")
 
         return
 
     # Incorrect guess logic
     remaining = 5 - attempts
     if remaining <= 0 and user_id not in deducted_for_user:
-        await db.decrement_score(user_id)
-        await db.reset_streak(user_id)
-        deducted_for_user.add(user_id)
-        await message.channel.send(
-            f"❌ Incorrect, {message.author.mention}. You've used all 5 guesses and lost 1 point.",
-            delete_after=7
-        )
+        try:
+            await db.decrement_score(user_id)
+            await db.reset_streak(user_id)
+            deducted_for_user.add(user_id)
+            await message.channel.send(
+                f"❌ Incorrect, {message.author.mention}. You've used all 5 guesses and lost 1 point.",
+                delete_after=7
+            )
+        except Exception as e:
+            print(f"[ERROR] DB error during penalty for user {user_id}: {e}")
     elif remaining > 0:
         await message.channel.send(
             f"❌ Incorrect, {message.author.mention}. {remaining} guess(es) left.",
@@ -207,6 +219,7 @@ async def on_message(message):
         f"⏳ Answer will be revealed in {h} hour(s), {m} minute(s).",
         delete_after=10
     )
+
 
 
 @client.event
