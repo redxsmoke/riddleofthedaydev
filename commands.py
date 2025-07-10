@@ -64,7 +64,7 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
                 await conn.execute(
                     """
                     INSERT INTO users (user_id, score, streak, created_at)
-                    VALUES ($1, 0, 0)
+                    VALUES ($1, 0, 0, CURRENT_TIMESTAMP )
                     ON CONFLICT (user_id) DO NOTHING
                     """,
                     user_id
