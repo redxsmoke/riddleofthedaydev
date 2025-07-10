@@ -237,7 +237,8 @@ async def on_command_error(interaction: discord.Interaction, error):
         traceback.print_exc()
 
 
-@tasks.loop(time=time(hour=15, minute=36, second=0))  # 10 minutes before daily post
+#@tasks.loop(time=time(hour=15, minute=36, second=0))  # 10 minutes before daily post
+@tasks.loop(seconds=30)
 async def riddle_announcement():
     channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
     channel = client.get_channel(channel_id)
@@ -268,6 +269,7 @@ async def daily_riddle_post():
         print("Daily riddle post skipped: Channel not found.")
         return
 
+    # Make sure this function is async and defined somewhere to fetch from DB
     riddles = await get_unused_questions()
     if not riddles:
         print("No riddles available to post.")
@@ -279,6 +281,7 @@ async def daily_riddle_post():
     correct_users = set()
     guess_attempts = {}
     deducted_for_user = set()
+
     submitter_name = "Anonymous"
     if riddle.get("submitter_id"):
         user = client.get_user(int(riddle["submitter_id"]))
@@ -291,7 +294,7 @@ async def daily_riddle_post():
         color=discord.Color.blurple()
     )
     await channel.send(embed=embed)
-    
+
     # Mark this riddle as posted so it is not reused
     async with db_pool.acquire() as conn:
         await conn.execute(
@@ -318,7 +321,7 @@ async def reveal_riddle_answer():
     answer = current_riddle.get("answer", "Unknown")
     riddle_id = current_riddle.get("id", "???")
 
-    # Post the answer
+    # Post the answer embed
     embed = discord.Embed(
         title=f"🔔 Answer to Riddle #{riddle_id}",
         description=f"**Answer:** {answer}\n\n💡 Use `/submitriddle` to submit your own riddle!",
@@ -326,10 +329,9 @@ async def reveal_riddle_answer():
     )
     await channel.send(embed=embed)
 
-    # Post congratulations
+    # Post congratulations if any correct users
     if correct_users:
-        # Get all user scores from DB for max calculation
-        all_scores = await db.get_all_scores()  # You must implement this in db.py returning {user_id: score}
+        all_scores = await db.get_all_scores()  # Must return dict {user_id_str: score}
         max_score = max(all_scores.values()) if all_scores else 0
 
         congrats_embed = discord.Embed(
@@ -356,36 +358,34 @@ async def reveal_riddle_answer():
                 description_lines.append(f"    • Streak: {streak_line}")
                 description_lines.append("")
             except Exception:
+                # Fallback mention if user fetch fails
                 description_lines.append(f"#{idx} <@{user_id_str}>")
                 description_lines.append("")
+
         congrats_embed.description = "\n".join(description_lines)
         await channel.send(embed=congrats_embed)
     else:
         await channel.send("😢 No one guessed the riddle correctly today.")
 
-    # ✅ Streak reset for users who did not guess and are not the submitter
     submitter_id = current_riddle.get("submitter_id")
 
-    all_streak_users = await db.get_all_streak_users()  # Implement in db.py returning list of user_ids with streaks
+    # Reset streaks for users who didn't guess and are not submitter
+    all_streak_users = await db.get_all_streak_users()  # Return list of user_id strings
     for user_id_str in all_streak_users:
-        # Skip users who got it correct
         if user_id_str in correct_users:
             continue
-
-        # Skip if user is today's riddle submitter
         if submitter_id and user_id_str == str(submitter_id):
             continue
-
-        # If the user made 0 attempts, reset their streak
         if user_id_str not in guess_attempts:
             await db.reset_streak(user_id_str)
 
-    # ✅ Reset state
+    # Reset global state
     current_answer_revealed = True
     current_riddle = None
     correct_users.clear()
     guess_attempts.clear()
     deducted_for_user.clear()
+
 
 
 async def daily_riddle_post_callback():
