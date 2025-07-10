@@ -543,7 +543,6 @@ async def update_user_score_and_streak(user_id: int, add_score=0, add_streak=0):
     return new_score, new_streak
 
 
-
-setup_test_sequence_commands(tree, client)
+ 
 
 
