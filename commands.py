@@ -5,6 +5,7 @@ import os
 import asyncio
 import traceback 
 from db import get_user, insert_submitted_question, db_pool
+import views
 
 db_pool = None
 

@@ -18,6 +18,8 @@ import asyncpg
 import db
 from commands import setup, set_db_pool  # make sure setup is exported
 
+from recreate import recreate_table
+
 # Only one intents declaration (fixed duplicate)
 intents = discord.Intents.default()
 intents.members = True
@@ -516,6 +518,9 @@ async def startup():
         commands.set_db_pool(pool)
         print("✅ Database connection pool created successfully.")
 
+    print("⏳ Recreating the riddle table...")
+    await recreate_table()
+    print("✅ Riddle table recreated.")
 
     except Exception as e:
         print(f"❌ Failed to connect to the database or sync commands: {e}")
