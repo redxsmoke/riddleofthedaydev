@@ -18,7 +18,7 @@ import asyncpg
 import db
 from commands import setup, set_db_pool  # make sure setup is exported
 
-from recreate import recreate_table
+
 
 # Only one intents declaration (fixed duplicate)
 intents = discord.Intents.default()
@@ -308,7 +308,7 @@ async def on_command_error(interaction: discord.Interaction, error):
         print(f"Error in command {interaction.command}: {error}")
         traceback.print_exc()
 
-@tasks.loop(time=time(hour=15, minute=18, second=0))  # 10 minutes before daily post
+@tasks.loop(time=time(hour=15, minute=21, second=0))  # 10 minutes before daily post
 async def riddle_announcement():
     channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
     channel = client.get_channel(channel_id)
@@ -324,7 +324,7 @@ async def riddle_announcement():
 
     await channel.send(embed=embed)
 
-@tasks.loop(time=time(hour=15, minute=19, second=0))  # Posts every day at noon UTC
+@tasks.loop(time=time(hour=15, minute=22, second=0))  # Posts every day at noon UTC
 async def daily_riddle_post():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -363,7 +363,7 @@ async def daily_riddle_post():
 
     print(f"Posted daily riddle #{riddle['id']}")
 
-@tasks.loop(time=time(hour=15, minute=20, second=0))  # Runs at 23:00 UTC daily
+@tasks.loop(time=time(hour=15, minute=23, second=0))  # Runs at 23:00 UTC daily
 async def reveal_riddle_answer():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -520,10 +520,7 @@ async def startup():
         commands.set_db_pool(pool)
         print("✅ Database connection pool created successfully.")
 
-        print("⏳ Recreating the riddle table...")
-        await recreate_table()
-        print("✅ Riddle table recreated.")
-
+  
     except Exception as e:
         print(f"❌ Failed to connect to the database or sync commands: {e}")
         exit(1)
