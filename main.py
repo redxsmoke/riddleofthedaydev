@@ -279,7 +279,7 @@ async def daily_riddle_post():
         if not riddles:
             warn_embed = discord.Embed(
                 title="⚠️ No More Riddles Available",
-                description="There are currently no new riddles left to post. Please submit new riddles with `/submitriddle`!",
+                description="There are currently no new riddles left to post. Please submit new riddles with `/submitriddle`! or yell @IzzyBan to add more",
                 color=discord.Color.red()
             )
             await channel.send(embed=warn_embed)
