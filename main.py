@@ -486,7 +486,10 @@ async def run_bot():
     try:
         print("⏳ Connecting to the database...")
         pool = await db.create_db_pool()
-        db.db_pool = pool  # ✅ THIS IS WHAT WAS MISSING
+        db.db_pool = pool
+p       rint(f"[DEBUG] db.db_pool set: {db.db_pool}")
+        if db.db_pool is None:
+    raise RuntimeError("db_pool is still None after create_db_pool()!") 
         commands.set_db_pool(pool)
         print("✅ Database connection pool created successfully.")
     except Exception as e:
