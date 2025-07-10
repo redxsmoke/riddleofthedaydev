@@ -18,13 +18,13 @@ def set_db_pool(pool):
 
 # Utility functions for ranks (unchanged)
 def get_rank(score):
-    if score <= 5:
+    if score <= 10:
         return "🍽️ Sushi Newbie"
-    elif 6 <= score <= 15:
+    elif 11 <= score <= 35:
         return "🍣 Maki Novice"
-    elif 16 <= score <= 25:
+    elif 36 <= score <= 65:
         return "🍤 Sashimi Skilled"
-    elif 26 <= score <= 50:
+    elif 66 <= score <= 99:
         return "🧠 Brainy Botan"
     else:
         return "🧪 Sushi Einstein"
@@ -327,7 +327,7 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
 
         embed.add_field(
             name="👑 Top Rank",
-            value="**🍣 Master Sushi Chef** — Awarded to the user(s) with the highest score.",
+            value="**🍣 Master Sushi Chef** — Awarded to the user(s) with the highest score + streak.",
             inline=False
         )
 
@@ -346,11 +346,11 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         embed.add_field(
             name="🎯 Score-Based Ranks",
             value=(
-                "• 🍽️ **Sushi Newbie** — 0–5 points\n"
-                "• 🍣 **Maki Novice** — 6–15 points\n"
-                "• 🍤 **Sashimi Skilled** — 16–25 points\n"
-                "• 🧠 **Brainy Botan** — 26–50 points\n"
-                "• 🧪 **Sushi Einstein** — 51+ points"
+                "• 🍽️ **Sushi Newbie** — 0-10 points\n"
+                "• 🍣 **Maki Novice** — 11–35 points\n"
+                "• 🍤 **Sashimi Skilled** — 36–65 points\n"
+                "• 🧠 **Brainy Botan** — 66–99 points\n"
+                "• 🧪 **Sushi Einstein** — 100+ points"
             ),
             inline=False
         )

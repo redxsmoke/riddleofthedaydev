@@ -122,15 +122,18 @@ async def on_message(message):
     if not current_riddle or current_answer_revealed:
         return
 
-    # Prevent riddle submitter from answering
     if str(current_riddle.get("user_id")) == str(message.author.id):
         try:
             await message.delete()
         except Exception as e:
             print(f"[ERROR] Failed to delete submitter message: {e}")
-        await message.channel.send("⛔ You submitted this riddle and cannot answer it.", delete_after=10)
+        
+        embed = discord.Embed(
+            description="⛔ You submitted this riddle and cannot answer it.",
+            color=discord.Color.red()
+        )
+        await message.channel.send(embed=embed, delete_after=10)
         return
-
 
 #
     # Already answered correctly
