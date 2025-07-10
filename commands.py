@@ -5,7 +5,8 @@ import os
 import asyncio
 import traceback 
 from db import get_user, insert_submitted_question, db_pool
-from views import ListRiddlesView, LeaderboardView
+from views.ListRiddlesView import ListRiddlesView
+from views.LeaderboardView import LeaderboardView
 
 db_pool = None
 
