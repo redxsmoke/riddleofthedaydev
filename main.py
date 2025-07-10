@@ -30,6 +30,7 @@ SCORES_FILE = "scores.json"
 STREAKS_FILE = "streaks.json"
 SUBMISSION_DATES_FILE = "submission_dates.json"
 
+
 # Global state containers
 submitted_questions = []    # List of dicts with riddles, each with id, question, answer, submitter_id
 scores = {}                 # user_id (str) -> int score
@@ -123,7 +124,10 @@ def pick_next_riddle():
     riddle = random.choice(unused)
     used_question_ids.add(str(riddle["id"]))
     return riddle
+
+
 STOP_WORDS = {"a", "an", "the", "is", "was", "were", "of", "to", "and", "in", "on", "at", "by"}
+
 
 def clean_and_filter(text):
     words = re.findall(r'\b\w+\b', text.lower())
@@ -158,23 +162,22 @@ def format_question_embed(qdict, submitter=None):
     return embed
 
 
-def get_rank(score, streak=None):
+def get_rank(score, streak=0):
     # Example rank calculation, customize as needed
     if scores:
         max_score = max(scores.values())
         if score == max_score and max_score > 0:
             return "🍣 Master Sushi Chef (Top scorer)"
-    if streak is not None:
-        if streak >= 30:
-            return "💚🔥 Wasabi Warlord (30+ day streak)"
-        elif streak >= 20:
-            return "🥢 Rollmaster Ronin (20+ day streak)"
-        elif streak >= 10:
-            return "🍣 Nigiri Ninja (10+ day streak)"
-        elif streak >= 5:
-            return "🍤 Tempura Titan (5+ day streak)"
-        elif streak >= 3:
-            return "🔥 Streak Samurai (3+ day streak)"
+    if streak >= 30:
+        return "💚🔥 Wasabi Warlord (30+ day streak)"
+    elif streak >= 20:
+        return "🥢 Rollmaster Ronin (20+ day streak)"
+    elif streak >= 10:
+        return "🍣 Nigiri Ninja (10+ day streak)"
+    elif streak >= 5:
+        return "🍤 Tempura Titan (5+ day streak)"
+    elif streak >= 3:
+        return "🔥 Streak Samurai (3+ day streak)"
     if score <= 5:
         return "Sushi Newbie 🍽️"
     elif 6 <= score <= 15:
@@ -189,15 +192,15 @@ def get_rank(score, streak=None):
 
 def get_streak_rank(streak):
     if streak >= 30:
-        return "💚🔥 Wasabi Warlord (30+ day streak)"
+        return "💚🔥 Wasabi Warlord"
     elif streak >= 20:
-        return "🥢 Rollmaster Ronin (20+ day streak)"
+        return "🥢 Rollmaster Ronin"
     elif streak >= 10:
-        return "🍣 Nigiri Ninja (10+ day streak)"
+        return "🍣 Nigiri Ninja"
     elif streak >= 5:
-        return "🍤 Tempura Titan (5+ day streak)"
+        return "🍤 Tempura Titan"
     elif streak >= 3:
-        return "🔥 Streak Samurai (3+ day streak)"
+        return "🔥 Streak Samurai"
     else:
         return None
 
@@ -237,12 +240,14 @@ async def on_message(message):
             )
             return
         else:
-            return 
+            return
 
     # If they've already answered correctly, ignore further guesses
     if user_id in correct_users:
-        try: await message.delete()
-        except: pass
+        try:
+            await message.delete()
+        except:
+            pass
         await message.channel.send(
             f"✅ You already answered correctly, {message.author.mention}. No more guesses counted.",
             delete_after=5
@@ -252,8 +257,10 @@ async def on_message(message):
     # Track how many guesses they’ve made
     attempts = guess_attempts.get(user_id, 0)
     if attempts >= 5:
-        try: await message.delete()
-        except: pass
+        try:
+            await message.delete()
+        except:
+            pass
         await message.channel.send(
             f"❌ You are out of guesses for this riddle, {message.author.mention}.",
             delete_after=5
@@ -266,5 +273,25 @@ async def on_message(message):
     # Check answer words
     user_words = clean_and_filter(content)
     answer_words = clean_and_filter(current_riddle["answer"])
-    
-    if any(word in user_words_
+
+    if any(word in user_words for word in answer_words):
+        # Correct
+        correct_users.add(user_id)
+        scores[user_id] = scores.get(user_id, 0) + 1
+        streaks[user_id] = streaks.get(user_id, 0) + 1
+        save_all_scores()
+        try:
+            await message.delete()
+        except:
+            pass
+        correct_guess_embed = discord.Embed(
+            title="You guess correctly!",
+            description=f"🥳 Correct, {message.author.mention}! Your total score: {scores[user_id]}",
+            color=discord.Color.green()
+        )
+        await message.channel.send(embed=correct_guess_embed)
+    else:
+        # Wrong
+        remaining = 5 - guess_attempts.get(user_id, 0)
+        if remaining == 0 and user_id not in deducted_for_user:
+            # Pena
