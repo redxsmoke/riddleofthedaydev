@@ -264,11 +264,6 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
 )
 
 
-
-    
-
-
-
     @tree.command(name="addpoints", description="Add points to a user")
     @app_commands.describe(user="The user to add points to", amount="Number of points to add (positive integer)")
     @app_commands.checks.has_permissions(manage_guild=True)
@@ -409,7 +404,7 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         try:
             async with db_pool.acquire() as conn:
                 result = await conn.execute(
-                    "DELETE FROM user_submitted_questions WHERE id = $1",
+                    "DELETE FROM user_submitted_questions WHERE riddle_id = $1",
                     riddle_id
                 )
             print(f"[removeriddle] DB execute result: {result}")
