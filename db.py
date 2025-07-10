@@ -33,5 +33,16 @@ async def get_all_submitted_questions():
     async with db_pool.acquire() as conn:
         return await conn.fetch("SELECT * FROM user_submitted_questions")
 
-# Add more functions as needed...
-#
+async def insert_submitted_question(user_id: int, question: str, answer: str):
+    try:
+        async with db_pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO user_submitted_questions (user_id, question, answer, created_at)
+                VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+                """,
+                user_id, question, answer
+            )
+        print(f"[insert_submitted_question] Inserted riddle by user {user_id}")
+    except Exception as e:
+        print(f"[insert_submitted_question] ERROR inserting riddle: {e}")

@@ -91,15 +91,42 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         await ensure_user_exists(uid)
 
         print(f"[myranks] Fetching user with id: {uid}")
-
         try:
-            row = await get_user(uid)
+            async with db_pool.acquire() as conn:
+                row = await conn.fetchrow("SELECT score, streak FROM users WHERE user_id = $1", uid)
             print(f"[myranks] DB query result: {row}")
         except Exception as e:
             print(f"[myranks] ERROR querying DB: {e}")
+            import traceback
             traceback.print_exc()
             await interaction.followup.send("❌ Database query failed.", ephemeral=True)
             return
+
+        score_val = row["score"] if row else 0
+        streak_val = row["streak"] if row else 0
+
+        rank = get_rank(score_val)
+        streak_rank = get_streak_rank(streak_val)
+
+        embed = Embed(
+            title=f"📊 Your Riddle Stats, {interaction.user.display_name}",
+            color=discord.Color.green()
+        )
+
+        score_text = f"Score: {score_val} {'🍣' if score_val > 0 else ''}"
+        streak_text = f"Streak: 🔥{streak_val}"
+        if streak_rank:
+            streak_text += f" — {streak_rank}"
+
+        embed.add_field(name="Score", value=score_text, inline=False)
+        embed.add_field(name="Streak", value=streak_text, inline=False)
+        embed.add_field(name="Rank", value=rank or "No rank", inline=False)
+
+        try:
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            print("[myranks] Embed sent successfully")
+        except Exception as e:
+            print(f"[myranks] ERROR sending embed: {e}")
 
 
         score_val = row["score"] if row else 0
@@ -169,14 +196,6 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         # Update user score by 1
         await update_user_score_and_streak(interaction.user.id, add_score=1)
         print("[submitriddle] Updated user score by 1")
-
-        embed = Embed(
-            title="🧩 Riddle Submitted!",
-            description=f"**Riddle:** {question}\n\n_(Submitted by {interaction.user.display_name})_",
-            color=discord.Color.blurple()
-        )
-        await interaction.followup.send(embed=embed)
-        print("[submitriddle] Embed sent")
 
         # Optional: Notify mod user
         notify_user_id = os.getenv("NOTIFY_USER_ID")
