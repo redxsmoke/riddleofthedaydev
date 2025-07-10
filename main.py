@@ -493,7 +493,7 @@ async def on_ready():
 async def main():
     await create_db_pool()  # initialize DB pool for db.py
 
-    token = os.getenv("DISCORD_TOKEN")
+    token = os.getenv("DISCORD_BOT_TOKEN")
     if not token:
         print("⚠️ DISCORD_TOKEN env var missing!")
         return
