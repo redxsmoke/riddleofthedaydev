@@ -242,7 +242,7 @@ async def riddle_announcement():
     await channel.send(embed=embed)
 
 
-@tasks.loop(seconds=60)
+@tasks.loop(seconds=20)
 async def daily_riddle_post():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -329,7 +329,7 @@ async def daily_riddle_post():
 
 
 
-@tasks.loop(seconds=80)
+@tasks.loop(seconds=30)
 async def reveal_riddle_answer():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
