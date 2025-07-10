@@ -319,7 +319,7 @@ async def daily_riddle_post():
         print(f"ERROR in daily_riddle_post loop: {e}")
 
 
-@tasks.loop(seconds=45)  # Runs at 23:00 UTC daily
+@tasks.loop(seconds=45)  # Runs every 45 seconds (adjust for prod)
 async def reveal_riddle_answer():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -393,16 +393,22 @@ async def reveal_riddle_answer():
             if user_id_str in deducted_for_user:
                 continue  # Already penalized
 
-    await db.adjust_score_and_reset_streak(user_id_str, -1)
-    deducted_for_user.add(user_id_str)
+            try:
+                await db.adjust_score_and_reset_streak(user_id_str, -1)
+                print(f"❗ Deducted and reset streak for {user_id_str}")
+                deducted_for_user.add(user_id_str)
+            except Exception as e:
+                print(f"⚠️ Error deducting/resetting for {user_id_str}: {e}")
 
         current_answer_revealed = True
         current_riddle = None
         correct_users.clear()
         guess_attempts.clear()
         deducted_for_user.clear()
+
     except Exception as e:
         print(f"ERROR in reveal_riddle_answer loop: {e}")
+
 
 
 async def daily_riddle_post_callback():
