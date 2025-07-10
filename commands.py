@@ -4,7 +4,7 @@ from discord.ui import View, Button
 import os
 import asyncio
 import traceback 
-from db import get_user
+from db import get_user, insert_submitted_question
 
 db_pool = None
 
