@@ -123,10 +123,9 @@ async def on_message(message):
         return
 
     # Prevent riddle submitter from answering
-    if current_riddle.get("user_id") == user_id:
-        user_words = clean_and_filter(content)
-        answer_words = clean_and_filter(current_riddle["answer"])
-        if any(word in user_words for word in answer_words):
+    if current_riddle:
+        submitter_id = current_riddle.get("user_id")
+        if submitter_id is not None and int(submitter_id) == message.author.id:
             try:
                 await message.delete()
             except Exception as e:
@@ -134,17 +133,23 @@ async def on_message(message):
             await message.channel.send("⛔ You submitted this riddle and cannot answer it.", delete_after=10)
             return
 
+
     # Already answered correctly
+    from discord import Embed
+
     if user_id in correct_users:
         try:
             await message.delete()
         except:
             pass
-        await message.channel.send(
-            f"✅ You already answered correctly, {message.author.mention}. No more guesses counted.",
-            delete_after=5
+
+        embed = Embed(
+            description=f"✅ You already answered correctly, {message.author.mention}. No more guesses counted.",
+            color=discord.Color.green()
         )
+        await message.channel.send(embed=embed, delete_after=5)
         return
+
 
     # Track guess attempts
     guess_attempts[user_id] = guess_attempts.get(user_id, 0) + 1
