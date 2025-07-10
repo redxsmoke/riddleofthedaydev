@@ -480,25 +480,40 @@ async def on_ready():
     
     commands.setup(tree, client)   # setup commands after login
     try:
-        synced = await tree.sync()  # sync commands with Discord
+        synced = await tree.sync()  # sync commands after client ready
         print(f"Synced {len(synced)} commands.")
     except Exception as e:
         print(f"Failed to sync commands: {e}")
 
-    # Start task loops
-    riddle_announcement.start()
-    daily_riddle_post.start()
-    reveal_riddle_answer.start()
+    if not riddle_announcement.is_running():
+        riddle_announcement.start()
+    if not daily_riddle_post.is_running():
+        daily_riddle_post.start()
+    if not reveal_riddle_answer.is_running():
+        reveal_riddle_answer.start()
 
-async def main():
-    await create_db_pool()  # initialize DB pool for db.py
 
-    token = os.getenv("DISCORD_BOT_TOKEN")
-    if not token:
-        print("⚠️ DISCORD_TOKEN env var missing!")
-        return
+async def startup():
+    TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+    DB_URL = os.getenv("DATABASE_URL")
 
-    await client.start(token)
+    if not TOKEN or not DB_URL:
+        print("ERROR: Required environment variables are not set.")
+        exit(1)
+
+    try:
+        print("⏳ Connecting to the database...")
+        pool = await db.create_db_pool()
+        commands.set_db_pool(pool)
+        print("✅ Database connection pool created successfully.")
+
+  
+    except Exception as e:
+        print(f"❌ Failed to connect to the database or sync commands: {e}")
+        exit(1)
+
+    await client.start(TOKEN)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(startup())
+
