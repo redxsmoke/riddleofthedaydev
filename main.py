@@ -308,7 +308,7 @@ async def on_command_error(interaction: discord.Interaction, error):
         print(f"Error in command {interaction.command}: {error}")
         traceback.print_exc()
 
-@tasks.loop(time=time(hour=3, minute=13, second=0))  # 10 minutes before daily post
+@tasks.loop(time=time(hour=15, minute=18, second=0))  # 10 minutes before daily post
 async def riddle_announcement():
     channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
     channel = client.get_channel(channel_id)
@@ -324,7 +324,7 @@ async def riddle_announcement():
 
     await channel.send(embed=embed)
 
-@tasks.loop(time=time(hour=3, minute=14, second=0))  # Posts every day at noon UTC
+@tasks.loop(time=time(hour=15, minute=19, second=0))  # Posts every day at noon UTC
 async def daily_riddle_post():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -363,7 +363,7 @@ async def daily_riddle_post():
 
     print(f"Posted daily riddle #{riddle['id']}")
 
-@tasks.loop(time=time(hour=3, minute=16, second=0))  # Runs at 23:00 UTC daily
+@tasks.loop(time=time(hour=15, minute=20, second=0))  # Runs at 23:00 UTC daily
 async def reveal_riddle_answer():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -498,9 +498,12 @@ async def on_ready():
     except Exception as e:
         print(f"Failed to sync commands: {e}")
 
-    riddle_announcement.start()
-    daily_riddle_post.start()
-    reveal_riddle_answer.start()
+    if not riddle_announcement.is_running():
+        riddle_announcement.start()
+    if not daily_riddle_post.is_running():
+        daily_riddle_post.start()
+    if not reveal_riddle_answer.is_running():
+        reveal_riddle_answer.start()
 
 
 async def startup():
