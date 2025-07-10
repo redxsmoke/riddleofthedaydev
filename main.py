@@ -123,15 +123,14 @@ async def on_message(message):
         return
 
     # Prevent riddle submitter from answering
-    if current_riddle:
-        submitter_id = current_riddle.get("user_id")
-        if submitter_id is not None and int(submitter_id) == message.author.id:
-            try:
-                await message.delete()
-            except Exception as e:
-                print(f"[ERROR] Failed to delete submitter message: {e}")
-            await message.channel.send("⛔ You submitted this riddle and cannot answer it.", delete_after=10)
-            return
+    if str(current_riddle.get("user_id")) == str(message.author.id):
+        try:
+            await message.delete()
+        except Exception as e:
+            print(f"[ERROR] Failed to delete submitter message: {e}")
+        await message.channel.send("⛔ You submitted this riddle and cannot answer it.", delete_after=10)
+        return
+
 
 
     # Already answered correctly
