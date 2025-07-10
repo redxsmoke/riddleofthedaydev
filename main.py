@@ -527,5 +527,5 @@ if __name__ == "__main__":
         await client.start(TOKEN)
 
     asyncio.run(startup())
-)
+
 
