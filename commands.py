@@ -56,14 +56,26 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
 
     @tree.command(name="myranks", description="Show your riddle score, streak, and rank")
     async def myranks(interaction: discord.Interaction):
+        print("[myranks] Command invoked")
+
         if db_pool is None:
+            print("[myranks] ERROR: db_pool is None (DB not initialized)")
             await interaction.response.send_message("Database connection not initialized.", ephemeral=True)
             return
 
-        await interaction.response.defer(ephemeral=True)  # Defer early to avoid timeout
+        await interaction.response.defer(ephemeral=True)
+        print("[myranks] Deferred interaction response")
 
         uid = interaction.user.id
-        row = await get_user(uid)
+        print(f"[myranks] Fetching user with id: {uid}")
+
+        try:
+            row = await get_user(uid)
+            print(f"[myranks] DB query result: {row}")
+        except Exception as e:
+            print(f"[myranks] ERROR querying DB: {e}")
+            await interaction.followup.send("❌ Database query failed.", ephemeral=True)
+            return
 
         score_val = row["score"] if row else 0
         streak_val = row["streak"] if row else 0
@@ -85,7 +97,11 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         embed.add_field(name="Streak", value=streak_text, inline=False)
         embed.add_field(name="Rank", value=rank or "No rank", inline=False)
 
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        try:
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            print("[myranks] Embed sent successfully")
+        except Exception as e:
+            print(f"[myranks] ERROR sending embed: {e}")
 
 
     @tree.command(name="submitriddle", description="Submit a new riddle for the daily contest")
@@ -509,17 +525,22 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
                 await interaction.response.edit_message(embed=embed, view=self)
 
 
-    @tree.command(name="purge", description="Purge messages from a channel")
-    @app_commands.describe(channel="The channel to purge messages from", amount="Number of messages to purge")
-    @app_commands.checks.has_permissions(manage_messages=True)
-    async def purge(interaction: discord.Interaction, channel: discord.TextChannel, amount: int):
-        if amount < 1:
-            await interaction.response.send_message("Amount must be at least 1.", ephemeral=True)
+    @tree.command(name="purge", description="Delete all messages in this channel")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def purge(interaction: discord.Interaction):
+        channel = interaction.channel
+        if not isinstance(channel, discord.TextChannel):
+            await interaction.response.send_message("❌ This command can only be used in text channels.", ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
-        deleted = await channel.purge(limit=amount)
-        await interaction.followup.send(f"Purged {len(deleted)} messages from {channel.mention}.", ephemeral=True)
+
+        def is_not_pinned(m):
+            return not m.pinned
+
+        deleted = await channel.purge(limit=None, check=is_not_pinned)
+        await interaction.followup.send(f"🧹 Purged {len(deleted)} messages.", ephemeral=True)
+
 
 
 # A top-level helper function for updating score and streak
