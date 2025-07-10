@@ -257,6 +257,12 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
         except Exception:
             print("[submitriddle] Failed to send DM confirmation to submitter")
 
+        await interaction.followup.send(
+            "✅ Your riddle was submitted successfully! Check your DMs for more info.",
+            ephemeral=True
+)
+
+
 
     
 
