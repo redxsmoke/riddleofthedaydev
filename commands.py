@@ -4,10 +4,10 @@ from discord.ui import View, Button
 import os
 import asyncio
 import traceback
-from db import get_user, insert_submitted_question, update_user_score_and_streak
+from db import get_user, insert_submitted_question, increment_score, increment_streak
 from views import LeaderboardView
 
-print(f"[IMPORT CHECK] update_user_score_and_streak = {update_user_score_and_streak}")
+
 
 
 # THIS is crucial: store your own copy of db_pool here and allow it to be set
