@@ -113,7 +113,7 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             color=discord.Color.green()
         )
 
-        score_text = f"Score: {score_val} {'🍣' if score_val > 0 else ''}"
+        score_text = f"Score: {score_val} {'🍣- Master Sushi Chef' if score_val > 0 else ''}"
         streak_text = f"Streak: 🔥{streak_val}"
         if streak_rank:
             streak_text += f" — {streak_rank}"
