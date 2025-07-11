@@ -55,19 +55,29 @@ async def get_unused_questions():
 
 
 async def format_question_embed(qdict, submitter=None):
+    # Determine submitter name
+    if submitter is None:
+        submitter_name = "Unknown"
+    elif submitter.id == 1:
+        submitter_name = "Riddle of the Day Bot"
+    else:
+        submitter_name = submitter.display_name
+
     embed = discord.Embed(
-        title=f"🧩 Riddle #{qdict['riddle_id']}:\n\n{qdict['question']}",
+        title=f"🧩 Riddle #{qdict['riddle_id']} 🧩",
+        description=qdict['question'],
         color=discord.Color.blurple()
     )
     embed.set_footer(text="Answer will be revealed at 23:00 UTC. Use /submitriddle to contribute your own!")
-
-    if submitter:
-        embed.add_field(
-            name="Submitted By",
-            value=submitter.mention,
-            inline=False
-        )
+    
+    embed.add_field(
+        name="Submitted By",
+        value=submitter_name,
+        inline=False
+    )
+    
     return embed
+
 
 
 def get_rank(score, streak=0):
