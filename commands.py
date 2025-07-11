@@ -242,8 +242,12 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             await interaction.followup.send("❌ Amount must be a positive integer.", ephemeral=True)
             return
 
-        new_score, _ = await update_user_score_and_streak(user.id, add_score=amount)
-        print(f"[addpoints] Added {amount} points to user {user.id}, new score: {new_score}")
+        print("[addpoints] Before update_user_score_and_streak")
+        new_score, _ = await update_user_score_and_streak(user.id, interaction, add_score=amount)
+        print(f"[addpoints] After update_user_score_and_streak: new_score={new_score}")
+
+        if new_score is None:
+            return  # already handled in the backend
 
         await interaction.followup.send(
             f"✅ Added {amount} point(s) to {user.mention}. New score: {new_score}",
