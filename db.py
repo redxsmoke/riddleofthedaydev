@@ -251,6 +251,7 @@ async def update_user_score_and_streak(
 ):
     print("[update_user_score_and_streak] Start")
 
+
     if db_pool is None:
         print("[update_user_score_and_streak] db_pool is None")
         raise RuntimeError("DB pool is not initialized.")
