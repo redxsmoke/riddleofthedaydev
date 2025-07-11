@@ -176,11 +176,11 @@ async def on_message(message):
         print(f"[DEBUG] Added user {user_id} to correct_users")
 
         try:
-            await db.increment_score(user_id)
+            await db.increment_score(int(user_id))
             print(f"[on_message] 🧠 Score incremented for {user_id}")
-            await db.increment_streak(user_id)
+            await db.increment_streak(int(user_id))
             print(f"[on_message] 🔥 Streak incremented for {user_id}")
-            score = await db.get_score(user_id)
+            score = await db.get_score(int(user_id))
             print(f"[DEBUG] User {user_id} score incremented to {score}")
         except Exception as e:
             print(f"[on_message ERROR] Failed to update score/streak for {user_id}: {e}")
