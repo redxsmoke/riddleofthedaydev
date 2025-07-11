@@ -61,7 +61,7 @@ async def format_question_embed(qdict, submitter=None):
     elif submitter.id == 1:
         submitter_name = "Riddle of the Day Bot"
     else:
-        submitter_name = submitter.display_name
+        submitter_name = submitter.mention
 
     embed = discord.Embed(
         title=f"🧩 Riddle #{qdict['riddle_id']} 🧩",
