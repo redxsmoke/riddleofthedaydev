@@ -166,6 +166,7 @@ async def on_message(message):
     answer_words = clean_and_filter(current_riddle["answer"])
 
     if any(word in user_words for word in answer_words):
+        print(f"[on_message] ✅ Correct guess from user {user_id} ({message.author.display_name})")
         try:
             await message.delete()
         except:
@@ -176,10 +177,13 @@ async def on_message(message):
 
         try:
             await db.increment_score(user_id)
+            print(f"[on_message] 🧠 Score incremented for {user_id}")
             await db.increment_streak(user_id)
+            print(f"[on_message] 🔥 Streak incremented for {user_id}")
             score = await db.get_score(user_id)
             print(f"[DEBUG] User {user_id} score incremented to {score}")
         except Exception as e:
+            print(f"[on_message ERROR] Failed to update score/streak for {user_id}: {e}")
             print(f"[ERROR] DB error incrementing score/streak or getting score: {e}")
             score = "unknown"
 
@@ -292,7 +296,7 @@ async def riddle_announcement():
         await channel.send(embed=warning_embed)
 
 
-@tasks.loop(time=time(hour=3, minute=41, second=20, tzinfo=timezone.utc))
+@tasks.loop(seconds=30)
 
 async def daily_riddle_post():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
@@ -378,7 +382,7 @@ async def daily_riddle_post():
         print(f"ERROR in daily_riddle_post loop: {e}")
 
 
-@tasks.loop(time=time(hour=3, minute=42, second=0, tzinfo=timezone.utc))
+@tasks.loop(seconds=30)
 
 async def reveal_riddle_answer():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
