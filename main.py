@@ -66,7 +66,7 @@ async def format_question_embed(qdict, submitter=None):
     if remaining < 5:
         embed.add_field(
             name="⚠️ Riddle Supply Low",
-            value="Less than 5 new riddles remain - submit one with `/submitriddle`!",
+            value="> Less than 5 new riddles remain - submit one with `/submitriddle`!",
             inline=False
         )
     if submitter:
@@ -244,7 +244,7 @@ async def on_command_error(interaction: discord.Interaction, error):
         traceback.print_exc()
 
 
-@tasks.loop(time=time(hour=2, minute=27, second=0, tzinfo=timezone.utc))
+@tasks.loop(time=time(hour=2, minute=35, second=0, tzinfo=timezone.utc))
 async def daily_purge():
     try:
         channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
@@ -261,7 +261,7 @@ async def daily_purge():
         print(f"❌ Error during daily purge: {e}")
 
 
-@tasks.loop(time=time(hour=2, minute=27, second=0))
+@tasks.loop(time=time(hour=2, minute=35, second=0))
 async def riddle_announcement():
     channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
     channel = client.get_channel(channel_id)
@@ -278,7 +278,7 @@ async def riddle_announcement():
     await channel.send(embed=embed)
 
 
-@tasks.loop(time=time(hour=2, minute=27, second=0))
+@tasks.loop(time=time(hour=2, minute=35, second=0))
 async def daily_riddle_post():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -363,7 +363,7 @@ async def daily_riddle_post():
         print(f"ERROR in daily_riddle_post loop: {e}")
 
 
-@tasks.loop(time=time(hour=2, minute=28, second=0))
+@tasks.loop(time=time(hour=2, minute=36, second=0))
 async def reveal_riddle_answer():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -404,19 +404,25 @@ async def reveal_riddle_answer():
                     crown = " - 👑 🍣 Master Sushi Chef" if score == max_score and max_score > 0 else ""
                     rank = get_rank(score, streak)
 
-                    lines.append(f"#{i} {user.display_name}")
-                    lines.append(f"• Score: {score}{crown}")
-                    lines.append(f"• Rank: {rank}")
-                    lines.append(f"• Streak: 🔥 {streak}")
+                    lines.append(f"#{i} {user.mention}")
+                    lines.append(f"• 🧠 Score: **{score}**{crown}")
+                    lines.append(f"• 🎖️ Rank: {rank}")
+                    lines.append(f"• 🔥 Streak: **{streak}**")
                     lines.append("")
                 except:
                     lines.append(f"#{i} <@{user_id_str}>\n")
 
             embed.description = "\n".join(lines)
             await channel.send(embed=embed)
-        else:
-            await channel.send("😢 Nobody got it right today.")
 
+        else:
+            await channel.send(embed=discord.Embed(
+                title="😢 Nobody Got It Right Today",
+                description="Better luck tomorrow!\n\n💡 Submit your own with `/submitriddle`!",
+                color=discord.Color.blurple()
+            ))
+
+            ))
         riddle_author_id = current_riddle.get("user_id")
         all_users = await db.get_all_streak_users()
         for uid in all_users:
