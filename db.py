@@ -277,36 +277,38 @@ async def increment_score(user_id: str, interaction: discord.Interaction):
 async def increment_streak(user_id: str, interaction: discord.Interaction):
     if db_pool is None:
         raise RuntimeError("DB pool is not initialized. Call create_db_pool() first.")
-    
+
     print(f"[increment_streak] Called for user_id={user_id}")
-    
+
     try:
         async with db_pool.acquire() as conn:
+            # Check if user exists
+            user = await conn.fetchrow("SELECT user_id FROM users WHERE user_id = $1", int(user_id))
+            if not user:
+                # User not found, send error embed
+                embed = discord.Embed(
+                    title="⛔ User Not Found",
+                    description=(
+                        "That user does not yet exist in the database.\n\n"
+                        "Have them **submit** or **answer** a riddle first — their account will be created automatically.\n"
+                        "After that, this command will work."
+                    ),
+                    color=discord.Color.red()
+                )
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                return  # stop further processing
+
+            # User exists, update streak
             await conn.execute("""
-                INSERT INTO users (user_id, score, streak, created_at)
-                VALUES ($1, 0, 1, NOW())
-                ON CONFLICT (user_id) DO UPDATE
-                SET streak = users.streak + 1
+                UPDATE users
+                SET streak = streak + 1
+                WHERE user_id = $1
             """, int(user_id))
+
         print(f"[increment_streak] Incremented streak for user {user_id}")
 
     except Exception as e:
         print(f"[increment_streak] ERROR: {e}")
-
-        embed = discord.Embed(
-            title="⛔ User Not Found",
-            description=(
-                "That user does not yet exist in the database.\n\n"
-                "Have them **submit** or **answer** a riddle first — their account will be created automatically.\n"
-                "After that, this command will work."
-            ),
-            color=discord.Color.red()
-        )
-        try:
-            await interaction.followup.send(embed=embed, ephemeral=True)
-        except Exception as send_err:
-            print(f"[increment_streak] Failed to send error embed: {send_err}")
-
 
 
 async def increment_score(user_id: str, interaction: discord.Interaction):
@@ -317,27 +319,29 @@ async def increment_score(user_id: str, interaction: discord.Interaction):
 
     try:
         async with db_pool.acquire() as conn:
+            # Check if user exists
+            user = await conn.fetchrow("SELECT user_id FROM users WHERE user_id = $1", int(user_id))
+            if not user:
+                embed = discord.Embed(
+                    title="⛔ User Not Found",
+                    description=(
+                        "That user does not yet exist in the database.\n\n"
+                        "Have them **submit** or **answer** a riddle first — their account will be created automatically.\n"
+                        "After that, this command will work."
+                    ),
+                    color=discord.Color.red()
+                )
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                return
+
+            # User exists, update score
             await conn.execute("""
-                INSERT INTO users (user_id, score, streak, created_at)
-                VALUES ($1, 1, 0, NOW())
-                ON CONFLICT (user_id) DO UPDATE
-                SET score = users.score + 1
+                UPDATE users
+                SET score = score + 1
+                WHERE user_id = $1
             """, int(user_id))
+
         print(f"[increment_score] Incremented score for user {user_id}")
 
     except Exception as e:
         print(f"[increment_score] ERROR: {e}")
-
-        embed = discord.Embed(
-            title="⛔ User Not Found",
-            description=(
-                "That user does not yet exist in the database.\n\n"
-                "Have them **submit** or **answer** a riddle first — their account will be created automatically.\n"
-                "After that, this command will work."
-            ),
-            color=discord.Color.red()
-        )
-        try:
-            await interaction.followup.send(embed=embed, ephemeral=True)
-        except Exception as send_err:
-            print(f"[increment_score] Failed to send error embed: {send_err}")
