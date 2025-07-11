@@ -239,8 +239,8 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
     @app_commands.checks.has_permissions(manage_guild=True)
     async def addpoints(interaction: discord.Interaction, user: discord.User, amount: int):
         print("[addpoints] Command invoked")
-        await ensure_user_exists(uid)
         await interaction.response.defer(ephemeral=True)
+        await ensure_user_exists(uid)
         if amount <= 0:
             await interaction.followup.send("❌ Amount must be a positive integer.", ephemeral=True)
             return
@@ -270,8 +270,10 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             await interaction.followup.send("❌ Amount must be a positive integer.", ephemeral=True)
             return
 
-        _, new_streak = await increment_streak (user.id, add_streak=amount)
-        print(f"[addstreak] Added {amount} streak days to user {user.id}, new streak: {new_streak}")
+        success, new_streak = await increment_streak(user.id, add_streak=amount, interaction=interaction)
+        if not success:
+            # Error message already sent inside increment_streak
+            return
 
         await interaction.followup.send(
             f"✅ Added {amount} streak day(s) to {user.mention}. New streak: {new_streak}",
