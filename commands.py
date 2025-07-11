@@ -239,8 +239,8 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
     @app_commands.checks.has_permissions(manage_guild=True)
     async def addpoints(interaction: discord.Interaction, user: discord.User, amount: int):
         print("[addpoints] Command invoked")
+        await ensure_user_exists(uid)
         await interaction.response.defer(ephemeral=True)
-
         if amount <= 0:
             await interaction.followup.send("❌ Amount must be a positive integer.", ephemeral=True)
             return
