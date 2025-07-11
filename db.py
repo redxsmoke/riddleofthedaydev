@@ -238,7 +238,9 @@ async def get_score(user_id: str) -> int:
         print(f"[get_score] Score for user {user_id}: {score}")
         return score if score is not None else 0
 
-async def increment_score(user_id: str):
+import discord
+
+async def increment_score(user_id: str, interaction: discord.Interaction):
     if db_pool is None:
         raise RuntimeError("DB pool is not initialized.")
     
@@ -253,14 +255,25 @@ async def increment_score(user_id: str):
                 SET score = users.score + 1
             """, int(user_id))
         print(f"[increment_score] Incremented score for user {user_id}")
-    
+
     except Exception as e:
         print(f"[increment_score] ERROR: {e}")
-        print(f"❌ User {user_id} does not yet exist in the database.")
-        print("Please have them submit or answer a riddle first — an account will be created automatically.")
+
+        embed = discord.Embed(
+            title="⛔ User Not Found",
+            description=(
+                "That user does not yet exist in the database.\n\n"
+                "Have them **submit** or **answer** a riddle first — their account will be created automatically.\n"
+                "After that, this command will work."
+            ),
+            color=discord.Color.red()
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 
-async def increment_streak(user_id: str):
+import discord
+
+async def increment_streak(user_id: str, interaction: discord.Interaction):
     if db_pool is None:
         raise RuntimeError("DB pool is not initialized. Call create_db_pool() first.")
     
@@ -278,5 +291,15 @@ async def increment_streak(user_id: str):
 
     except Exception as e:
         print(f"[increment_streak] ERROR: {e}")
-        print(f"❌ User {user_id} does not yet exist in the database.")
-        print("Please have them submit or answer a riddle first — an account will be created automatically.")
+
+        embed = discord.Embed(
+            title="⛔ User Not Found",
+            description=(
+                "That user does not yet exist in the database.\n\n"
+                "Have them **submit** or **answer** a riddle first — their account will be created automatically.\n"
+                "After that, this command will work."
+            ),
+            color=discord.Color.red()
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
