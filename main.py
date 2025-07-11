@@ -244,7 +244,24 @@ async def on_command_error(interaction: discord.Interaction, error):
         traceback.print_exc()
 
 
-@tasks.loop(time=time(hour=15, minute=36, second=0))
+@tasks.loop(time=time(hour=2, minute=21, second=0, tzinfo=timezone.utc))
+async def daily_purge():
+    try:
+        channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
+        channel = client.get_channel(channel_id)
+
+        if not channel:
+            print("❌ Channel not found for purge.")
+            return
+
+        print(f"🧹 Purging messages in {channel.name} at 10:00 UTC")
+
+        await channel.purge(limit=None)
+    except Exception as e:
+        print(f"❌ Error during daily purge: {e}")
+
+
+@tasks.loop(time=time(hour=2, minute=22, second=0))
 async def riddle_announcement():
     channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
     channel = client.get_channel(channel_id)
@@ -261,7 +278,7 @@ async def riddle_announcement():
     await channel.send(embed=embed)
 
 
-@tasks.loop(seconds=6600)
+@tasks.loop(time=time(hour=2, minute=23, second=0))
 async def daily_riddle_post():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -346,7 +363,7 @@ async def daily_riddle_post():
         print(f"ERROR in daily_riddle_post loop: {e}")
 
 
-@tasks.loop(seconds=3600)
+@tasks.loop(time=time(hour=2, minute=24, second=0))
 async def reveal_riddle_answer():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -420,21 +437,7 @@ async def reveal_riddle_answer():
         print(f"Reveal loop error: {e}")
 
 
-@tasks.loop(time=time(hour=11, minute=50, second=0, tzinfo=timezone.utc))
-async def daily_purge():
-    try:
-        channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
-        channel = client.get_channel(channel_id)
 
-        if not channel:
-            print("❌ Channel not found for purge.")
-            return
-
-        print(f"🧹 Purging messages in {channel.name} at 10:00 UTC")
-
-        await channel.purge(limit=None)
-    except Exception as e:
-        print(f"❌ Error during daily purge: {e}")
 
 
 async def daily_riddle_post_callback():
