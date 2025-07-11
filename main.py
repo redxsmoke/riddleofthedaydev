@@ -56,8 +56,7 @@ async def get_unused_questions():
 
 async def format_question_embed(qdict, submitter=None):
     embed = discord.Embed(
-        title=f"🧩 Riddle #{qdict['riddle_id']}🧩",
-        description=qdict['question'],
+        title=f"🧩 Riddle #{qdict['riddle_id']}:\n\n{qdict['question']}",
         color=discord.Color.blurple()
     )
     embed.set_footer(text="Answer will be revealed at 23:00 UTC. Use /submitriddle to contribute your own!")
