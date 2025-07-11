@@ -56,8 +56,8 @@ async def get_unused_questions():
 
 async def format_question_embed(qdict, submitter=None):
     embed = discord.Embed(
-        title=f"🧠 Riddle #{qdict['riddle_id']}",
-        description=qdict['question'],
+        title=f"🧩 Riddle #{qdict['riddle_id']}🧩",
+        description=qdict['? question'],
         color=discord.Color.blurple()
     )
     embed.set_footer(text="Answer will be revealed at 23:00 UTC. Use /submitriddle to contribute your own!")
@@ -244,7 +244,7 @@ async def on_command_error(interaction: discord.Interaction, error):
         traceback.print_exc()
 
 
-@tasks.loop(time=time(hour=2, minute=35, second=0, tzinfo=timezone.utc))
+@tasks.loop(time=time(hour=2, minute=38, second=0, tzinfo=timezone.utc))
 async def daily_purge():
     try:
         channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
@@ -261,7 +261,7 @@ async def daily_purge():
         print(f"❌ Error during daily purge: {e}")
 
 
-@tasks.loop(time=time(hour=2, minute=35, second=0))
+@tasks.loop(time=time(hour=2, minute=38, second=0))
 async def riddle_announcement():
     channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
     channel = client.get_channel(channel_id)
@@ -278,7 +278,7 @@ async def riddle_announcement():
     await channel.send(embed=embed)
 
 
-@tasks.loop(time=time(hour=2, minute=35, second=0))
+@tasks.loop(time=time(hour=2, minute=38, second=0))
 async def daily_riddle_post():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -363,7 +363,7 @@ async def daily_riddle_post():
         print(f"ERROR in daily_riddle_post loop: {e}")
 
 
-@tasks.loop(time=time(hour=2, minute=36, second=0))
+@tasks.loop(time=time(hour=2, minute=38, second=0))
 async def reveal_riddle_answer():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -421,8 +421,7 @@ async def reveal_riddle_answer():
                 description="Better luck tomorrow!\n\n💡 Submit your own with `/submitriddle`!",
                 color=discord.Color.blurple()
             ))
-
-            ))
+            
         riddle_author_id = current_riddle.get("user_id")
         all_users = await db.get_all_streak_users()
         for uid in all_users:
