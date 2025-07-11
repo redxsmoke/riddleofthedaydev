@@ -252,12 +252,13 @@ async def update_user_score_and_streak(
     print("[update_user_score_and_streak] Start")
 
     if db_pool is None:
-        print("[update_user_score_and_streak] ERROR: db_pool is None")
+        print("[update_user_score_and_streak] db_pool is None")
         raise RuntimeError("DB pool is not initialized.")
 
-    print("[update_user_score_and_streak] Acquiring DB connection...")
+    print("[update_user_score_and_streak] Acquiring connection")
     async with db_pool.acquire() as conn:
         print("[update_user_score_and_streak] Connection acquired")
+
 
         print("[update_user_score_and_streak] Fetching user row...")
         user = await conn.fetchrow("SELECT score, streak FROM users WHERE user_id = $1", user_id)
