@@ -245,9 +245,9 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             await interaction.followup.send("❌ Amount must be a positive integer.", ephemeral=True)
             return
 
-        print("[addpoints] Before update_user_score_and_streak")
-        new_score, _ = await update_user_score_and_streak(user.id, interaction, add_score=amount)
-        print(f"[addpoints] After update_user_score_and_streak: new_score={new_score}")
+     
+        new_score, _ = await increment_score (user.id, interaction, add_score=amount)
+     
 
         if new_score is None:
             return  # already handled in the backend
@@ -270,7 +270,7 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             await interaction.followup.send("❌ Amount must be a positive integer.", ephemeral=True)
             return
 
-        _, new_streak = await update_user_score_and_streak(user.id, add_streak=amount)
+        _, new_streak = await increment_streak (user.id, add_streak=amount)
         print(f"[addstreak] Added {amount} streak days to user {user.id}, new streak: {new_streak}")
 
         await interaction.followup.send(
@@ -291,7 +291,7 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             await interaction.followup.send("❌ Amount must be a positive integer.", ephemeral=True)
             return
 
-        new_score, _ = await update_user_score_and_streak(user.id, add_score=-amount)
+        new_score, _ = await increment_score (user.id, add_score=-amount)
         print(f"[removepoints] Removed {amount} points from user {user.id}, new score: {new_score}")
 
         await interaction.followup.send(
@@ -312,7 +312,7 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             await interaction.followup.send("❌ Amount must be a positive integer.", ephemeral=True)
             return
 
-        _, new_streak = await update_user_score_and_streak(user.id, add_streak=-amount)
+        _, new_streak = await increment_streak (user.id, add_streak=-amount)
         print(f"[removestreak] Removed {amount} streak days from user {user.id}, new streak: {new_streak}")
 
         await interaction.followup.send(
@@ -512,26 +512,6 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
  
  
  
-# A top-level helper function for updating score and streak
-async def update_user_score_and_streak(user_id: int, add_score=0, add_streak=0):
-    async with db_pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT score, streak FROM users WHERE user_id=$1", user_id)
-        if row:
-            new_score = max(0, row["score"] + add_score)
-            new_streak = max(0, row["streak"] + add_streak)
-            await conn.execute(
-                "UPDATE users SET score=$1, streak=$2 WHERE user_id=$3",
-                new_score, new_streak, user_id
-            )
-        else:
-            new_score = max(0, add_score)
-            new_streak = max(0, add_streak)
-            await conn.execute(
-                "INSERT INTO users (user_id, score, streak) VALUES ($1, $2, $3)",
-                user_id, new_score, new_streak
-            )
-    return new_score, new_streak
-
 async def ensure_user_exists(user_id: int):
     async with db_pool.acquire() as conn:
         # Check if user exists
