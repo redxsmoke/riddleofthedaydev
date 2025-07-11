@@ -241,28 +241,42 @@ async def get_score(user_id: str) -> int:
 async def increment_score(user_id: str):
     if db_pool is None:
         raise RuntimeError("DB pool is not initialized.")
+    
     print(f"[increment_score] Called for user_id={user_id}")
-    async with db_pool.acquire() as conn:
-        await conn.execute("""
-            INSERT INTO users (user_id, score, streak, created_at)
-            VALUES ($1, 1, 0, NOW())
-            ON CONFLICT (user_id) DO UPDATE
-            SET score = users.score + 1
-        """, int(user_id))
-    print(f"[increment_score] Incremented score for user {user_id}")
+    
+    try:
+        async with db_pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO users (user_id, score, streak, created_at)
+                VALUES ($1, 1, 0, NOW())
+                ON CONFLICT (user_id) DO UPDATE
+                SET score = users.score + 1
+            """, int(user_id))
+        print(f"[increment_score] Incremented score for user {user_id}")
+    
+    except Exception as e:
+        print(f"[increment_score] ERROR: {e}")
+        print(f"❌ User {user_id} does not yet exist in the database.")
+        print("Please have them submit or answer a riddle first — an account will be created automatically.")
 
 
 async def increment_streak(user_id: str):
     if db_pool is None:
         raise RuntimeError("DB pool is not initialized. Call create_db_pool() first.")
+    
     print(f"[increment_streak] Called for user_id={user_id}")
     
-    async with db_pool.acquire() as conn:
-        await conn.execute("""
-            INSERT INTO users (user_id, score, streak, created_at)
-            VALUES ($1, 0, 1, NOW())
-            ON CONFLICT (user_id) DO UPDATE
-            SET streak = users.streak + 1
-        """, int(user_id))
-    
-    print(f"[increment_streak] Incremented streak for user {user_id}")
+    try:
+        async with db_pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO users (user_id, score, streak, created_at)
+                VALUES ($1, 0, 1, NOW())
+                ON CONFLICT (user_id) DO UPDATE
+                SET streak = users.streak + 1
+            """, int(user_id))
+        print(f"[increment_streak] Incremented streak for user {user_id}")
+
+    except Exception as e:
+        print(f"[increment_streak] ERROR: {e}")
+        print(f"❌ User {user_id} does not yet exist in the database.")
+        print("Please have them submit or answer a riddle first — an account will be created automatically.")
