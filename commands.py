@@ -4,7 +4,7 @@ from discord.ui import View, Button
 import os
 import asyncio
 import traceback
-from db import get_user, insert_submitted_question  # import from db, NOT db_pool
+from db import get_user, insert_submitted_question, update_user_score_and_streak
 from views import LeaderboardView
 
 # THIS is crucial: store your own copy of db_pool here and allow it to be set
