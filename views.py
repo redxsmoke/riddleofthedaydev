@@ -12,7 +12,7 @@ async def get_streak(user_id: str) -> int:
 
 async def get_rank(score):
     # You may want to make this async if needed, or pass in pre-fetched max_score/streak
-    if score >= 50:
+    if score >= 99:
         return "Sushi Einstein 🧪"
     # Add your rank logic as needed
 

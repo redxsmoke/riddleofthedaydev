@@ -414,26 +414,33 @@ async def reveal_riddle_answer():
                     score = all_scores.get(user_id_str, 0)
                     streak = await db.get_streak(user_id_str)
 
-                    crown = " - 👑 🍣 Master Sushi Chef" if score == max_score and max_score > 0 else ""
-                    rank = get_rank(score, streak)
+                    # Determine crown for top scorers (can be tied)
+                    crown = " 🍣 Master Sushi Chef" if score == max_score and max_score > 0 else ""
+
+                    score_rank = get_rank(score)
+                    streak_rank = get_rank(0, streak)  # pass streak as second param for streak rank
 
                     lines.append(f"#{i} {user.mention}")
                     lines.append(f"• 🧠 Score: **{score}**{crown}")
-                    lines.append(f"• 🎖️ Rank: {rank}")
+                    lines.append(f"• 🎖️ Score Rank: {score_rank}")
                     lines.append(f"• 🔥 Streak: **{streak}**")
+                    lines.append(f"• 🎖️ Streak Rank: {streak_rank}")
                     lines.append("")
-                except:
-                    lines.append(f"#{i} <@{user_id_str}>\n")
+
+                except Exception as e:
+                    lines.append(f"#{i} <@{user_id_str}> (error loading info)")
 
             embed.description = "\n".join(lines)
             await channel.send(embed=embed)
 
         else:
+            # Nobody got it right
             await channel.send(embed=discord.Embed(
                 title="😢 Nobody Got It Right Today",
                 description="Better luck tomorrow!\n\n💡 Submit your own with `/submitriddle`!",
                 color=discord.Color.blurple()
             ))
+
             
         riddle_author_id = current_riddle.get("user_id")
         all_users = await db.get_all_streak_users()
