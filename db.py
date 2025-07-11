@@ -239,8 +239,10 @@ async def get_score(user_id: str) -> int:
         print(f"[get_score] Score for user {user_id}: {score}")
         return score if score is not None else 0
 
- 
+import discord
 
+
+async def update_user_score_and_streak(
 async def update_user_score_and_streak(
     user_id: int,
     interaction: discord.Interaction,
@@ -270,4 +272,20 @@ async def update_user_score_and_streak(
                     "Have them **submit** or **answer** a riddle first — their account will be created automatically.\n"
                     "After that, this command will work."
                 ),
-                color=discord.Color.red
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            print("[update_user_score_and_streak] Sent error embed")
+            return None, None
+
+        new_score = max(user['score'] + add_score, 0)
+        new_streak = max(user['streak'] + add_streak, 0)
+
+        print(f"[update_user_score_and_streak] Updating user: score={new_score}, streak={new_streak}")
+        await conn.execute(
+            "UPDATE users SET score = $1, streak = $2 WHERE user_id = $3",
+            new_score, new_streak, user_id
+        )
+        print("[update_user_score_and_streak] Update complete")
+
+        return new_score, new_streak
