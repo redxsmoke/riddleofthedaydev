@@ -278,7 +278,7 @@ async def riddle_announcement():
     await channel.send(embed=embed)
 
 
-@tasks.loop(time=time(hour=2, minute=45, second=30))
+@tasks.loop(seconds=30)
 async def daily_riddle_post():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
