@@ -239,10 +239,10 @@ async def get_score(user_id: str) -> int:
         print(f"[get_score] Score for user {user_id}: {score}")
         return score if score is not None else 0
 
-import discord
+ 
 
 
-async def update_user_score_and_streak(
+ 
 async def update_user_score_and_streak(
     user_id: int,
     interaction: discord.Interaction,
