@@ -14,8 +14,8 @@ import asyncpg
 
 import db
 import commands
-from views import LeaderboardView, create_leaderboard_embed, get_all_scores_and_streaks
-from db import create_db_pool, upsert_user, get_user, insert_submitted_question, get_all_submitted_questions, increment_score, increment_streak, get_score
+from views import LeaderboardView, create_leaderboard_embed
+from db import create_db_pool, upsert_user, get_user, insert_submitted_question, get_all_submitted_questions, increment_score, increment_streak, get_score, get_all_scores_and_streaks
 
 
 intents = discord.Intents.default()

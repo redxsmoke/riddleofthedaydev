@@ -356,3 +356,11 @@ async def increment_score(user_id: int, add_score: int = 1, interaction: discord
             await interaction.followup.send("❌ An error occurred while updating score.", ephemeral=True)
         return False, None
 
+
+async def get_all_scores_and_streaks():
+    if db_pool is None:
+        raise RuntimeError("DB pool is not initialized.")
+    
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch("SELECT user_id, score, streak FROM users")
+        return {str(row["user_id"]): {"score": row["score"], "streak": row["streak"]} for row in rows}
