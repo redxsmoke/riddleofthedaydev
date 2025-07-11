@@ -62,13 +62,6 @@ async def format_question_embed(qdict, submitter=None):
     )
     embed.set_footer(text="Answer will be revealed at 23:00 UTC. Use /submitriddle to contribute your own!")
 
-    remaining = await count_unused_questions()
-    if remaining < 5:
-        embed.add_field(
-            name="⚠️ Riddle Supply Low",
-            value="> Less than 5 new riddles remain - submit one with `/submitriddle`!",
-            inline=False
-        )
     if submitter:
         embed.add_field(
             name="Submitted By",
@@ -244,7 +237,7 @@ async def on_command_error(interaction: discord.Interaction, error):
         traceback.print_exc()
 
 
-@tasks.loop(time=time(hour=2, minute=48, second=0, tzinfo=timezone.utc))
+@tasks.loop(time=time(hour=2, minute=55, second=0, tzinfo=timezone.utc))
 async def daily_purge():
     try:
         channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
@@ -261,7 +254,7 @@ async def daily_purge():
         print(f"❌ Error during daily purge: {e}")
 
 
-@tasks.loop(time=time(hour=2, minute=49, second=30))
+@tasks.loop(time=time(hour=2, minute=56, second=0))
 async def riddle_announcement():
     channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
     channel = client.get_channel(channel_id)
@@ -269,16 +262,27 @@ async def riddle_announcement():
         print("Riddle announcement skipped: Channel not found.")
         return
 
-    embed = discord.Embed(
+    # Send the main announcement embed
+    main_embed = discord.Embed(
         title="ℹ️ Upcoming Riddle Alert!",
         description="The next riddle will be submitted soon. Get ready!\n\n💡 Submit your own riddle using the `/submitriddle` command!",
         color=discord.Color.blurple()
     )
+    await channel.send(embed=main_embed)
 
-    await channel.send(embed=embed)
+    # Check remaining riddles count
+    remaining = await count_unused_questions()
+    if remaining < 5:
+        # Send a separate warning embed if less than 5 remain
+        warning_embed = discord.Embed(
+            title="⚠️ Riddle Supply Low",
+            description="> Less than 5 new riddles remain - submit one with `/submitriddle`!",
+            color=discord.Color.red()
+        )
+        await channel.send(embed=warning_embed)
 
 
-@tasks.loop(time=time(hour=2, minute=50, second=30))
+@tasks.loop(time=time(hour=2, minute=56, second=30))
 async def daily_riddle_post():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -363,7 +367,7 @@ async def daily_riddle_post():
         print(f"ERROR in daily_riddle_post loop: {e}")
 
 
-@tasks.loop(time=time(hour=2, minute=51, second=0))
+@tasks.loop(time=time(hour=2, minute=57, second=0))
 async def reveal_riddle_answer():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
