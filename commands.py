@@ -240,22 +240,21 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
     async def addpoints(interaction: discord.Interaction, user: discord.User, amount: int):
         print("[addpoints] Command invoked")
         await interaction.response.defer(ephemeral=True)
-        await ensure_user_exists(uid)
+
         if amount <= 0:
             await interaction.followup.send("❌ Amount must be a positive integer.", ephemeral=True)
             return
 
-     
-        new_score, _ = await increment_score (user.id, interaction, add_score=amount)
-     
-
-        if new_score is None:
-            return  # already handled in the backend
+        success, new_score = await increment_score(user.id, add_score=amount, interaction=interaction)
+        if not success:
+            # Error message already sent inside increment_score
+            return
 
         await interaction.followup.send(
             f"✅ Added {amount} point(s) to {user.mention}. New score: {new_score}",
             ephemeral=True
         )
+
 
 
 
@@ -293,13 +292,18 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             await interaction.followup.send("❌ Amount must be a positive integer.", ephemeral=True)
             return
 
-        new_score, _ = await increment_score (user.id, add_score=-amount)
+        success, new_score = await increment_score(user.id, add_score=-amount, interaction=interaction)
+        if not success:
+            # Error message already sent inside increment_score
+            return
+
         print(f"[removepoints] Removed {amount} points from user {user.id}, new score: {new_score}")
 
         await interaction.followup.send(
             f"❌ Removed {amount} point(s) from {user.mention}. New score: {new_score}",
             ephemeral=True
         )
+
 
 
 
@@ -314,13 +318,16 @@ def setup(tree: app_commands.CommandTree, client: discord.Client):
             await interaction.followup.send("❌ Amount must be a positive integer.", ephemeral=True)
             return
 
-        _, new_streak = await increment_streak (user.id, add_streak=-amount)
-        print(f"[removestreak] Removed {amount} streak days from user {user.id}, new streak: {new_streak}")
+        success, new_streak = await increment_streak(user.id, add_streak=-amount, interaction=interaction)
+        if not success:
+            # Error message already sent inside increment_streak
+            return
 
         await interaction.followup.send(
             f"❌ Removed {amount} streak day(s) from {user.mention}. New streak: {new_streak}",
             ephemeral=True
         )
+
 
     @tree.command(name="ranks", description="View all rank tiers and how to earn them")
     async def ranks(interaction: discord.Interaction):

@@ -317,37 +317,41 @@ async def increment_streak(user_id: int, add_streak: int = 1, interaction: disco
 
 
 
-async def increment_score(user_id: str, interaction: discord.Interaction):
+async def increment_score(user_id: int, add_score: int = 1, interaction: discord.Interaction = None):
     if db_pool is None:
         raise RuntimeError("DB pool is not initialized. Call create_db_pool() first.")
 
-    print(f"[increment_score] Called for user_id={user_id}")
+    print(f"[increment_score] Called for user_id={user_id}, add_score={add_score}")
 
     try:
         async with db_pool.acquire() as conn:
-            # Check if user exists
-            user = await conn.fetchrow("SELECT user_id FROM users WHERE user_id = $1", int(user_id))
+            user = await conn.fetchrow("SELECT score FROM users WHERE user_id = $1", user_id)
             if not user:
-                embed = discord.Embed(
-                    title="⛔ User Not Found",
-                    description=(
-                        "That user does not yet exist in the database.\n\n"
-                        "Have them **submit** or **answer** a riddle first — their account will be created automatically.\n"
-                        "After that, this command will work."
-                    ),
-                    color=discord.Color.red()
-                )
-                await interaction.followup.send(embed=embed, ephemeral=True)
-                return
+                if interaction:
+                    embed = discord.Embed(
+                        title="⛔ User Not Found",
+                        description=(
+                            "That user does not yet exist in the database.\n\n"
+                            "Have them **submit** or **answer** a riddle first — their account will be created automatically.\n"
+                            "After that, this command will work."
+                        ),
+                        color=discord.Color.red()
+                    )
+                    await interaction.followup.send(embed=embed, ephemeral=True)
+                return False, None
 
-            # User exists, update score
-            await conn.execute("""
-                UPDATE users
-                SET score = score + 1
-                WHERE user_id = $1
-            """, int(user_id))
+            new_score = user["score"] + add_score
+            await conn.execute(
+                "UPDATE users SET score = score + $1 WHERE user_id = $2",
+                add_score,
+                user_id
+            )
 
-        print(f"[increment_score] Incremented score for user {user_id}")
+        print(f"[increment_score] Updated score for user {user_id}, new score {new_score}")
+        return True, new_score
 
     except Exception as e:
         print(f"[increment_score] ERROR: {e}")
+        if interaction:
+            await interaction.followup.send("❌ An error occurred while updating score.", ephemeral=True)
+        return False, None
