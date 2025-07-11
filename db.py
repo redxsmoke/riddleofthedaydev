@@ -355,3 +355,4 @@ async def increment_score(user_id: int, add_score: int = 1, interaction: discord
         if interaction:
             await interaction.followup.send("❌ An error occurred while updating score.", ephemeral=True)
         return False, None
+

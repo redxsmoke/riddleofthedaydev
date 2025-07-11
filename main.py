@@ -14,7 +14,7 @@ import asyncpg
 
 import db
 import commands
-from views import LeaderboardView, create_leaderboard_embed
+from views import LeaderboardView, create_leaderboard_embed, get_all_scores_and_streaks
 from db import create_db_pool, upsert_user, get_user, insert_submitted_question, get_all_submitted_questions, increment_score, increment_streak, get_score
 
 
@@ -399,8 +399,8 @@ async def reveal_riddle_answer():
         ))
 
         if correct_users:
-            all_scores = await db.get_all_scores()
-            max_score = max(all_scores.values(), default=0)
+            all_data = await db.get_all_scores_and_streaks()
+            max_score = max((d["score"] for d in all_data.values()), default=0)
 
             embed = discord.Embed(
                 title="🎊 Congrats to today's winners!",
@@ -411,28 +411,28 @@ async def reveal_riddle_answer():
             for i, user_id_str in enumerate(correct_users, 1):
                 try:
                     user = await client.fetch_user(int(user_id_str))
-                    score = all_scores.get(user_id_str, 0)
-                    streak = await db.get_streak(user_id_str)
+                    data = all_data.get(user_id_str, {"score": 0, "streak": 0})
+                    score = data["score"]
+                    streak = data["streak"]
 
-                    # Determine crown for top scorers (can be tied)
-                    crown = " 🍣 Master Sushi Chef" if score == max_score and max_score > 0 else ""
-
-                    score_rank = get_rank(score)
-                    streak_rank = get_rank(0, streak)  # pass streak as second param for streak rank
+                    # Calculate ranks
+                    score_rank = get_rank(score, 0)
+                    streak_rank = get_rank(0, streak)
+                    master_chef = " 🍣 Master Sushi Chef" if score == max_score and score > 0 else ""
 
                     lines.append(f"#{i} {user.mention}")
-                    lines.append(f"• 🧠 Score: **{score}**{crown}")
-                    lines.append(f"• 🎖️ Score Rank: {score_rank}")
+                    lines.append(f"• 🧠 Score: **{score}**{master_chef}")
+                    lines.append(f"• 🏅 Score Rank: {score_rank}")
                     lines.append(f"• 🔥 Streak: **{streak}**")
-                    lines.append(f"• 🎖️ Streak Rank: {streak_rank}")
+                    lines.append(f"• 📈 Streak Rank: {streak_rank}")
                     lines.append("")
-
                 except Exception as e:
-                    lines.append(f"#{i} <@{user_id_str}> (error loading info)")
+                    lines.append(f"#{i} <@{user_id_str}>")
+                    lines.append(f"• Error fetching data: {e}")
+                    lines.append("")
 
             embed.description = "\n".join(lines)
             await channel.send(embed=embed)
-
         else:
             # Nobody got it right
             await channel.send(embed=discord.Embed(
