@@ -130,8 +130,8 @@ async def on_message(message):
         
         embed = discord.Embed(
             description=(
-                "⛔ You submitted this riddle and cannot answer it.\n\n"
-                "You were already awarded 1 point when you submitted the question and you will not lose your streak."
+                "**⛔ You submitted this riddle and cannot answer it**.\n\n"
+                "You were already awarded 1 point when you submitted the riddle. Don't worry, you will not lose your streak."
             ),
             color=discord.Color.red()
         )
@@ -244,7 +244,7 @@ async def on_command_error(interaction: discord.Interaction, error):
         traceback.print_exc()
 
 
-@tasks.loop(time=time(hour=2, minute=21, second=0, tzinfo=timezone.utc))
+@tasks.loop(time=time(hour=2, minute=27, second=0, tzinfo=timezone.utc))
 async def daily_purge():
     try:
         channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
@@ -261,7 +261,7 @@ async def daily_purge():
         print(f"❌ Error during daily purge: {e}")
 
 
-@tasks.loop(time=time(hour=2, minute=22, second=0))
+@tasks.loop(time=time(hour=2, minute=27, second=0))
 async def riddle_announcement():
     channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
     channel = client.get_channel(channel_id)
@@ -278,7 +278,7 @@ async def riddle_announcement():
     await channel.send(embed=embed)
 
 
-@tasks.loop(time=time(hour=2, minute=23, second=0))
+@tasks.loop(time=time(hour=2, minute=27, second=0))
 async def daily_riddle_post():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
@@ -363,7 +363,7 @@ async def daily_riddle_post():
         print(f"ERROR in daily_riddle_post loop: {e}")
 
 
-@tasks.loop(time=time(hour=2, minute=24, second=0))
+@tasks.loop(time=time(hour=2, minute=28, second=0))
 async def reveal_riddle_answer():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
 
