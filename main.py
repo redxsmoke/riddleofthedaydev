@@ -57,7 +57,7 @@ async def get_unused_questions():
 async def format_question_embed(qdict, submitter=None):
     # Determine submitter name
     if submitter is None:
-        submitter_name = "Unknown"
+        submitter_name = "Riddle of the Day Bot"
     elif submitter.id == 1:
         submitter_name = "Riddle of the Day Bot"
     else:
