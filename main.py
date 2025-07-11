@@ -254,7 +254,7 @@ async def daily_purge():
         print(f"❌ Error during daily purge: {e}")
 
 
-@tasks.loop(time=time(hour=2, minute=56, second=0))
+@tasks.loop(seconds=30)
 async def riddle_announcement():
     channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
     channel = client.get_channel(channel_id)
