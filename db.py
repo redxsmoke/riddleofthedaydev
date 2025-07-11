@@ -240,7 +240,7 @@ async def get_score(user_id: str) -> int:
 
 async def increment_score(user_id: str):
     if db_pool is None:
-        raise RuntimeError("DB pool is not initialized. Call create_db_pool() first.")
+        raise RuntimeError("DB pool is not initialized.")
     print(f"[increment_score] Called for user_id={user_id}")
     async with db_pool.acquire() as conn:
         await conn.execute("""
@@ -251,20 +251,18 @@ async def increment_score(user_id: str):
         """, int(user_id))
     print(f"[increment_score] Incremented score for user {user_id}")
 
+
 async def increment_streak(user_id: str):
     if db_pool is None:
         raise RuntimeError("DB pool is not initialized. Call create_db_pool() first.")
     print(f"[increment_streak] Called for user_id={user_id}")
+    
     async with db_pool.acquire() as conn:
         await conn.execute("""
             INSERT INTO users (user_id, score, streak, created_at)
-            VALUES ($1, 0, 0, NOW())
-            ON CONFLICT (user_id) DO NOTHING
+            VALUES ($1, 0, 1, NOW())
+            ON CONFLICT (user_id) DO UPDATE
+            SET streak = users.streak + 1
         """, int(user_id))
-
-        await conn.execute("""
-            UPDATE users
-            SET streak = streak + 1
-            WHERE user_id = $1
-        """, int(user_id))
+    
     print(f"[increment_streak] Incremented streak for user {user_id}")
