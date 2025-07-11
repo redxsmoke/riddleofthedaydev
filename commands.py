@@ -5,7 +5,7 @@ import os
 import asyncio
 import traceback
 from db import get_user, insert_submitted_question, increment_score, increment_streak
-from views import LeaderboardView
+from views import LeaderboardViewm ListRiddlesView
 
 
 
