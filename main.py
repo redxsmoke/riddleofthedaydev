@@ -236,8 +236,6 @@ async def on_message(message):
         delete_after=10
     )
 
-
-
 @client.event
 async def on_command_error(interaction: discord.Interaction, error):
     if isinstance(error, app_commands.errors.MissingPermissions):
@@ -250,7 +248,7 @@ async def on_command_error(interaction: discord.Interaction, error):
         traceback.print_exc()
 
 
-@tasks.loop(time=time(hour=3, minute=40, second=0, tzinfo=timezone.utc))
+@tasks.loop(time=time(hour=11, minute=45, second=0, tzinfo=timezone.utc))
 async def daily_purge():
     try:
         channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
@@ -267,7 +265,7 @@ async def daily_purge():
         print(f"❌ Error during daily purge: {e}")
 
 
-@tasks.loop(time=time(hour=3, minute=41, second=10, tzinfo=timezone.utc))
+@tasks.loop(time=time(hour=11, minute=55, second=0, tzinfo=timezone.utc))
 
 async def riddle_announcement():
     channel_id = int(os.getenv("DISCORD_CHANNEL_ID") or 0)
@@ -296,7 +294,8 @@ async def riddle_announcement():
         await channel.send(embed=warning_embed)
 
 
-@tasks.loop(seconds=30)
+
+@tasks.loop(time=time(hour=12, minute=0, second=0, tzinfo=timezone.utc))
 
 async def daily_riddle_post():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
@@ -382,7 +381,7 @@ async def daily_riddle_post():
         print(f"ERROR in daily_riddle_post loop: {e}")
 
 
-@tasks.loop(seconds=30)
+@tasks.loop(time=time(hour=23, minute=0, second=0, tzinfo=timezone.utc))
 
 async def reveal_riddle_answer():
     global current_riddle, current_answer_revealed, correct_users, guess_attempts, deducted_for_user
