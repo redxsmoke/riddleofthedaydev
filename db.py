@@ -1,10 +1,10 @@
+
 import os
 print(f"DEBUG: Loaded db.py from {os.path.abspath(__file__)}")
 
 import asyncpg
 import discord
-
-# Move this print to after the function declaration below (will reprint later)
+ 
 
 db_pool = None  # Global pool variable
 
@@ -136,52 +136,212 @@ async def increment_streak(user_id: str):
             WHERE user_id = $1
         """, int(user_id))
     print(f"[increment_streak] Incremented streak for user {user_id}")
+import asyncpg
+import os
 
-async def update_user_score_and_streak(
-    user_id: int,
-    interaction: discord.Interaction,
-    add_score: int = 0,
-    add_streak: int = 0
-):
-    print("[DB MODULE LOADED] update_user_score_and_streak loaded:", update_user_score_and_streak)
+db_pool = None  # Global pool variable
 
+async def create_db_pool():
+    global db_pool
     if db_pool is None:
-        print("[update_user_score_and_streak] db_pool is None")
-        raise RuntimeError("DB pool is not initialized.")
+        print("⏳ Creating database connection pool...")
+        db_pool = await asyncpg.create_pool(dsn=os.getenv("DATABASE_URL"))
+        print("✅ Database connection pool created.")
+    else:
+        print("⚠️ Database pool already initialized.")
+    return db_pool
 
-    print("[update_user_score_and_streak] Acquiring connection")
+def get_db_pool():
+    if db_pool is None:
+        raise RuntimeError("DB pool is not initialized. Call create_db_pool() first.")
+    return db_pool
+
+async def upsert_user(user_id: int, score: int, streak: int):
+    if db_pool is None:
+        raise RuntimeError("DB pool is not initialized. Call create_db_pool() first.")
     async with db_pool.acquire() as conn:
-        print("[update_user_score_and_streak] Connection acquired")
+        await conn.execute("""
+            INSERT INTO users (user_id, score, streak, created_at)
+            VALUES ($1, $2, $3, NOW())
+            ON CONFLICT (user_id) DO UPDATE
+            SET score = EXCLUDED.score,
+                streak = EXCLUDED.streak
+        """, user_id, score, streak)
+        print(f"[upsert_user] User {user_id} upserted with score={score}, streak={streak}")
 
-        print("[update_user_score_and_streak] Fetching user row...")
-        user = await conn.fetchrow("SELECT score, streak FROM users WHERE user_id = $1", user_id)
-        print(f"[update_user_score_and_streak] Fetched user: {user}")
+async def get_user(user_id: int):
+    if db_pool is None:
+        raise RuntimeError("DB pool is not initialized. Call create_db_pool() first.")
+    async with db_pool.acquire() as conn:
+        result = await conn.fetchrow("SELECT * FROM users WHERE user_id = $1", user_id)
+        print(f"[get_user] Fetched user {user_id}: {result}")
+        return result
 
-        if not user:
-            print("[update_user_score_and_streak] User not found — sending embed")
-            embed = discord.Embed(
-                title="⛔ User Not Found",
-                description=(
-                    "That user does not yet exist in the database.\n\n"
-                    "Have them **submit** or **answer** a riddle first — their account will be created automatically.\n"
-                    "After that, this command will work."
-                ),
-                color=discord.Color.red()
+async def get_all_submitted_questions():
+    if db_pool is None:
+        raise RuntimeError("DB pool is not initialized. Call create_db_pool() first.")
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch("SELECT * FROM user_submitted_questions")
+        print(f"[get_all_submitted_questions] Retrieved {len(rows)} questions")
+        return rows
+
+async def insert_submitted_question(user_id: int, question: str, answer: str):
+    if db_pool is None:
+        raise RuntimeError("DB pool is not initialized. Call create_db_pool() first.")
+    try:
+        async with db_pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO user_submitted_questions (user_id, question, answer, created_at)
+                VALUES ($1, $2, $3, NOW())
+                """,
+                user_id, question, answer
             )
-            await interaction.followup.send(embed=embed, ephemeral=True)
-            print("[update_user_score_and_streak] Sent error embed")
-            return None, None
+        print(f"[insert_submitted_question] Inserted riddle by user {user_id}")
+    except Exception as e:
+        print(f"[insert_submitted_question] ERROR inserting riddle: {e}")
 
-        new_score = max(user['score'] + add_score, 0)
-        new_streak = max(user['streak'] + add_streak, 0)
+async def count_unused_questions_db():
+    if db_pool is None:
+        raise RuntimeError("DB pool is not initialized. Call create_db_pool() first.")
+    async with db_pool.acquire() as conn:
+        result = await conn.fetchval("SELECT COUNT(*) FROM user_submitted_questions WHERE posted_at IS NULL")
+        print(f"[count_unused_questions_db] Counted {result} unused questions")
+        return result or 0
 
-        print(f"[update_user_score_and_streak] Updating user: score={new_score}, streak={new_streak}")
-        await conn.execute(
-            "UPDATE users SET score = $1, streak = $2 WHERE user_id = $3",
-            new_score, new_streak, user_id
+async def get_all_streak_users():
+    if db_pool is None:
+        raise RuntimeError("DB pool is not initialized. Call create_db_pool() first.")
+    async with db_pool.acquire() as conn:
+        rows = await conn.fetch("SELECT user_id FROM users WHERE streak > 0 OR score > 0")
+        users = [str(row["user_id"]) for row in rows]
+        print(f"[get_all_streak_users] Users with streak or score: {users}")
+        return users
+
+async def adjust_score_and_reset_streak(user_id: str, score_delta: int):
+    if db_pool is None:
+        raise RuntimeError("DB pool is not initialized. Call create_db_pool() first.")
+    async with db_pool.acquire() as conn:
+        await conn.execute("""
+            UPDATE users
+            SET score = GREATEST(score + $1, 0),
+                streak = 0
+            WHERE user_id = $2
+        """, score_delta, int(user_id))
+        print(f"[adjust_score_and_reset_streak] Adjusted score by {score_delta} and reset streak for user {user_id}")
+
+async def get_score(user_id: str) -> int:
+    if db_pool is None:
+        raise RuntimeError("DB pool is not initialized. Call create_db_pool() first.")
+    print(f"[get_score] Called for user_id={user_id}")
+    async with db_pool.acquire() as conn:
+        score = await conn.fetchval("SELECT score FROM users WHERE user_id = $1", int(user_id))
+        print(f"[get_score] Score for user {user_id}: {score}")
+        return score if score is not None else 0
+
+import discord
+
+async def increment_score(user_id: str, interaction: discord.Interaction):
+    if db_pool is None:
+        raise RuntimeError("DB pool is not initialized.")
+    
+    print(f"[increment_score] Called for user_id={user_id}")
+    
+    try:
+        async with db_pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO users (user_id, score, streak, created_at)
+                VALUES ($1, 1, 0, NOW())
+                ON CONFLICT (user_id) DO UPDATE
+                SET score = users.score + 1
+            """, int(user_id))
+        print(f"[increment_score] Incremented score for user {user_id}")
+
+    except Exception as e:
+        print(f"[increment_score] ERROR: {e}")
+
+        embed = discord.Embed(
+            title="⛔ User Not Found",
+            description=(
+                "That user does not yet exist in the database.\n\n"
+                "Have them **submit** or **answer** a riddle first — their account will be created automatically.\n"
+                "After that, this command will work."
+            ),
+            color=discord.Color.red()
         )
-        print("[update_user_score_and_streak] Update complete")
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
-        return new_score, new_streak
 
-print("[DB MODULE LOADED] update_user_score_and_streak loaded:", update_user_score_and_streak)
+ 
+
+async def increment_streak(user_id: str, interaction: discord.Interaction):
+    if db_pool is None:
+        raise RuntimeError("DB pool is not initialized. Call create_db_pool() first.")
+
+    print(f"[increment_streak] Called for user_id={user_id}")
+
+    try:
+        async with db_pool.acquire() as conn:
+            # Check if user exists
+            user = await conn.fetchrow("SELECT user_id FROM users WHERE user_id = $1", int(user_id))
+            if not user:
+                # User not found, send error embed
+                embed = discord.Embed(
+                    title="⛔ User Not Found",
+                    description=(
+                        "That user does not yet exist in the database.\n\n"
+                        "Have them **submit** or **answer** a riddle first — their account will be created automatically.\n"
+                        "After that, this command will work."
+                    ),
+                    color=discord.Color.red()
+                )
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                return  # stop further processing
+
+            # User exists, update streak
+            await conn.execute("""
+                UPDATE users
+                SET streak = streak + 1
+                WHERE user_id = $1
+            """, int(user_id))
+
+        print(f"[increment_streak] Incremented streak for user {user_id}")
+
+    except Exception as e:
+        print(f"[increment_streak] ERROR: {e}")
+
+
+async def increment_score(user_id: str, interaction: discord.Interaction):
+    if db_pool is None:
+        raise RuntimeError("DB pool is not initialized. Call create_db_pool() first.")
+
+    print(f"[increment_score] Called for user_id={user_id}")
+
+    try:
+        async with db_pool.acquire() as conn:
+            # Check if user exists
+            user = await conn.fetchrow("SELECT user_id FROM users WHERE user_id = $1", int(user_id))
+            if not user:
+                embed = discord.Embed(
+                    title="⛔ User Not Found",
+                    description=(
+                        "That user does not yet exist in the database.\n\n"
+                        "Have them **submit** or **answer** a riddle first — their account will be created automatically.\n"
+                        "After that, this command will work."
+                    ),
+                    color=discord.Color.red()
+                )
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                return
+
+            # User exists, update score
+            await conn.execute("""
+                UPDATE users
+                SET score = score + 1
+                WHERE user_id = $1
+            """, int(user_id))
+
+        print(f"[increment_score] Incremented score for user {user_id}")
+
+    except Exception as e:
+        print(f"[increment_score] ERROR: {e}")
