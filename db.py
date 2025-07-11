@@ -4,6 +4,7 @@ print(f"DEBUG: Loaded db.py from {os.path.abspath(__file__)}")
 
 import asyncpg
 import discord
+from commands import ensure_user_exists
  
 
 db_pool = None  # Global pool variable
